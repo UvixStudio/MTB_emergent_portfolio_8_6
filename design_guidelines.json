@@ -1,117 +1,116 @@
 {
   "theme": "dark",
-  "archetype": "5 (Luxury / Cinematic) mixed with gamified tech",
-  "design_philosophy": "A Gamified smooth low poly game theme acting as a portfolio for an experienced creative director/technologist. Balances an immersive 3D scroll-driven sequence with clean, high-end typography and UX.",
+  "archetype": "Performance Pro with Cinematic Game Mechanics",
   "colors": {
     "background": {
-      "base": "#0B121A",
-      "surface": "#131C26",
-      "surface_glass": "rgba(19, 28, 38, 0.7)"
+      "base": "#0A0A0A",
+      "surface": "rgba(18, 18, 18, 0.7)",
+      "scrim_gradient_left": "linear-gradient(90deg, rgba(10,10,10,0.95) 0%, rgba(10,10,10,0.8) 40%, rgba(10,10,10,0) 100%)",
+      "scrim_gradient_right": "linear-gradient(270deg, rgba(10,10,10,0.95) 0%, rgba(10,10,10,0.8) 40%, rgba(10,10,10,0) 100%)",
+      "scrim_gradient_bottom": "linear-gradient(0deg, rgba(10,10,10,1) 0%, rgba(10,10,10,0.8) 40%, rgba(10,10,10,0) 100%)"
+    },
+    "primary": {
+      "brand_yellow": "#FACC15",
+      "brand_yellow_glow": "rgba(250, 204, 21, 0.3)"
+    },
+    "accents_sparse": {
+      "checkpoint_01": "#FACC15",
+      "checkpoint_02": "#C084FC",
+      "checkpoint_03": "#22D3EE",
+      "checkpoint_04": "#4ADE80"
     },
     "text": {
       "primary": "#FFFFFF",
-      "secondary": "#94A3B8",
-      "muted": "#64748B"
+      "secondary": "#A1A1AA",
+      "inverse": "#0A0A0A"
     },
-    "brand": {
-      "primary": "#FACC15",
-      "primary_glow": "rgba(250, 204, 21, 0.5)"
-    },
-    "checkpoints": {
-      "01_about": "#FACC15",
-      "02_director": "#C084FC",
-      "03_ai": "#22D3EE",
-      "04_projects": "#4ADE80"
-    }
+    "notes": "Tone down the overall color palette. The site should feel like a dark cinematic mountain trail. Checkpoint accents must be used extremely sparingly (only for small marker dots, numbers, or tiny flags). The dominant aesthetic is Monochrome + #FACC15."
   },
   "typography": {
     "fonts": {
-      "display": "'Unbounded', sans-serif",
-      "body": "'Manrope', sans-serif"
+      "headings": "Unbounded, sans-serif",
+      "body": "Manrope, sans-serif"
     },
-    "scale": {
-      "h1": "text-4xl sm:text-5xl lg:text-6xl tracking-tighter uppercase font-black",
-      "h2": "text-2xl sm:text-3xl lg:text-4xl tracking-tight uppercase font-bold",
-      "h3": "text-xl sm:text-2xl tracking-tight font-bold",
-      "body": "text-base leading-relaxed font-light",
-      "label": "text-sm tracking-[0.2em] uppercase font-bold"
+    "hierarchy": {
+      "h1": "text-5xl md:text-7xl font-black uppercase tracking-tighter text-white drop-shadow-[0_4px_12px_rgba(0,0,0,0.8)]",
+      "h2": "text-4xl md:text-5xl font-bold uppercase tracking-tight text-white",
+      "h3": "text-2xl md:text-3xl font-bold text-white",
+      "h4": "text-lg md:text-xl font-bold text-[#FACC15] tracking-widest uppercase",
+      "body": "text-base md:text-lg text-[#A1A1AA] leading-relaxed"
     }
   },
-  "spacing_and_layout": {
-    "container": "max-w-7xl mx-auto px-6 sm:px-8",
-    "section_padding": "py-24 sm:py-32",
-    "bento_grid": "grid grid-cols-1 md:grid-cols-12 gap-6",
-    "radius": "rounded-none sm:rounded-md",
-    "mobile_strategy": "Stack sections vertically. Keep the scroll trail as a straight vertical line connecting milestones on the left edge of the screen. Throttle frame scrubbing performance."
+  "layout_and_spacing": {
+    "philosophy": "Continuous gamified scroll experience. Break free from rigid 'Bootstrap' or grid layouts. Elements should feel mapped onto a winding mountain trail.",
+    "spacing_scale": "Generous spacing. py-32 to py-48 for section transitions to allow parallax and trail line to breathe.",
+    "trail_band_pattern": {
+      "z_index_0": "Background Image: Fixed or slow parallax (e.g., y: ['-10%', '10%']). A specific cinematic ride frame.",
+      "z_index_10": "Gradient Scrim: Absolute inset-0 covering 50% of the screen width (left or right) to guarantee text contrast. Opacity 95% at edge fading to 0% at center.",
+      "z_index_20": "SVG Trail Line: Continuous weaving line connecting sections. 3px stroke, #FACC15.",
+      "z_index_30": "Content: Text, hex badges, signposts, overlaying the scrim.",
+      "z_index_40": "Foreground Parallax: Optional drifting elements (dust particles, low-poly rocks/leaves) moving faster (e.g., y: ['20%', '-30%'])."
+    },
+    "existing_elements": {
+      "the_journey_panel": "The floating 'THE JOURNEY' progress panel and filling yellow track already exist and MUST STAY. Ensure z-index is higher than background layers."
+    }
   },
-  "key_components": {
+  "components": {
     "hero": {
-      "layout": "h-screen w-full relative flex flex-col justify-center items-start z-10",
-      "greeting": "text-white 'Hi! I\\'m ' with 'Yuval Cohen' in text-[#FACC15]",
-      "animated_typography": "Slot-machine vertical flip using framer-motion AnimatePresence. Roles: CREATIVE TECHNOLOGIST, CREATIVE DIRECTOR, PRODUCER, AI & 3D SPECIALIST, MTB RIDER.",
-      "ctas": "Two buttons. Primary: Download CV (Solid Yellow, Black Text). Secondary: Let's Talk (Outline White, Hover Yellow).",
-      "scroll_indicator": "Center-bottom MTB cleat shoe + bicycle pedal SVG with continuous rotation and 'Let\\'s Ride!' text. White glowing color."
+      "frame_mood": "overlook / starting gate",
+      "fixes": "Add heavy `scrim_gradient_left` to ensure 'Yuval Cohen', rotating roles, and 'Let's Ride!' CTA have APCA-compliant contrast over the moving scrub-to-scroll canvas. Content strictly left-aligned."
     },
-    "journey_panel": {
-      "position": "fixed right-8 top-1/2 -translate-y-1/2 z-50 hidden lg:flex flex-col gap-4",
-      "design": "Floating wireframe mountain map with a yellow SVG track (`path`) that fills using framer-motion `useScroll`. Includes 4 colored flags mapping to the checkpoints."
+    "about_me": {
+      "frame_mood": "forest trail",
+      "layout": "Capabilities mapped along the weaving trail line like a game skill-tree.",
+      "hexagon_badges": {
+        "shape": "clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)",
+        "style": "w-24 h-28 md:w-32 md:h-36 bg-black/40 backdrop-blur-md border-[2px] border-white/10 flex flex-col items-center justify-center gap-2 transition-all duration-300 hover:border-[#FACC15] hover:shadow-[0_0_20px_rgba(250,204,21,0.3)] hover:-translate-y-2 cursor-pointer",
+        "iconography": "Solid white or #FACC15 line-icons (MTB/trail energy) sizing 32px. Uppercase Unbounded titles inside.",
+        "data_testid": "about-capability-hexagon"
+      }
     },
-    "canvas_sequence": {
-      "behavior": "Sticky `h-screen` background behind all content. 241 frames scrubbed based on `scrollYProgress`. Overlaid with a subtle vignette/gradient (`bg-black/40` or gradient) to ensure text legibility."
+    "experience": {
+      "frame_mood": "wooden bridge",
+      "wooden_signposts": {
+        "style": "Dark stylized low-poly panels simulating wood. Border-left 4px using the sparse checkpoint colors. Subtle wood-grain texture or noise overlay. bg-black/60 backdrop-blur-md.",
+        "layout": "Positioned alternately on the left and right sides of the central SVG trail line. Connected to the line by a small horizontal branch/dash.",
+        "data_testid": "experience-signpost"
+      }
     },
-    "capability_badges": {
-      "design": "Glowing borders matching the checkpoint colors. Active state gets a `box-shadow` glow.",
-      "animation": "Spring staggered entrance (`whileInView`)."
+    "ai_and_innovation": {
+      "frame_mood": "river/canyon / glowing crystal cave",
+      "style": "Glowing node theme. Darkest background frame with subtle cyan (#22D3EE) ambient glows for AI tools. Tools represented as glowing crystal nodes on the trail."
     },
-    "selected_works": {
-      "layout": "Asymmetric Bento Grid (Tetris Mode A). 1 hero project (`col-span-12 md:col-span-8 row-span-2`), secondary projects (`col-span-4`), narrow projects.",
-      "interaction": "Hover triggers image scale-up (`scale-105`) and staggered tag reveals."
+    "projects": {
+      "frame_mood": "open downhill / winding path",
+      "layout": "NOT a bento grid. Parallax floating trail markers along the winding path. Cards on the left scroll slightly faster than cards on the right. Feels like riding past a gallery on the mountain.",
+      "card_style": "Floating 'polaroid' or rugged trail marker. bg-[#121212]/80 backdrop-blur-md border border-white/5 p-4 rounded-lg. Image 16:9 at top, Unbounded title + Manrope tags below. Hover scales image and brightens border.",
+      "data_testid": "project-parallax-card"
     },
-    "tools_marquee": {
-      "design": "Monochrome or glowing tool logos slowly sliding infinitely. Use `react-fast-marquee`."
-    },
-    "contact_modal": {
-      "trigger": "Let's Talk button or Campfire trailhead CTA.",
-      "design": "Shadcn Dialog. Dark surface `#131C26`, yellow thin borders, sharp corners. Professional and popup-blocker safe."
+    "lets_connect": {
+      "frame_mood": "campfire trailhead (final downhill frame)",
+      "style": "Warm ambient glow (yellow/orange). Centered content. Heavy scrim at the bottom fading up.",
+      "cta": "Massive #FACC15 button with 'data-testid=\"contact-cta\"'."
     }
   },
-  "motion_guidelines": {
-    "scroll": "MUST use `lenis` for smooth momentum scrolling to make the frame-scrubbing feel premium and heavy.",
-    "reveal": "All text and sections use `whileInView` with a slow, damped spring (`type: 'spring', damping: 20, stiffness: 100`).",
-    "hover": "Buttons have a slight lift (`-translate-y-1`) and border color transition."
+  "motion": {
+    "engine": "Framer Motion (useScroll, useTransform) + Lenis for momentum.",
+    "trail_line_animation": "SVG `pathLength` bound to `scrollYProgress`.",
+    "parallax_ratios": {
+      "backgrounds": "y: [ '-5%', '5%' ] (Very slow, subtle depth)",
+      "content": "y: 0 (Normal scroll speed)",
+      "foreground_particles": "y: [ '15%', '-15%' ] (Fast, close to camera)"
+    }
   },
-  "media": {
-    "projects": [
-      {
-        "url": "https://images.unsplash.com/photo-1634084462412-b54873c0a56d?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1NTN8MHwxfHNlYXJjaHwxfHxtb2Rlcm4lMjBjcmVhdGl2ZSUyMHRlY2glMjBwb3J0Zm9saW8lMjBwcm9qZWN0fGVufDB8fHx8MTc4MDg2MjQ4NHww&ixlib=rb-4.1.0&q=85",
-        "description": "Project Hero Image - Web/Tech UI"
-      },
-      {
-        "url": "https://images.unsplash.com/photo-1682056598904-9aa7ea5e8991?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1NTN8MHwxfHNlYXJjaHw0fHxtb2Rlcm4lMjBjcmVhdGl2ZSUyMHRlY2glMjBwb3J0Zm9saW8lMjBwcm9qZWN0fGVufDB8fHx8MTc4MDg2MjQ4NHww&ixlib=rb-4.1.0&q=85",
-        "description": "Project Grid Image - Creative Laptop Setup"
-      },
-      {
-        "url": "https://images.pexels.com/photos/37356604/pexels-photo-37356604.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
-        "description": "Project Grid Image - Creative Portfolio Showcase"
-      }
-    ],
-    "background_fallback": [
-      {
-        "url": "https://images.unsplash.com/photo-1638824075317-52d01dfa0605?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NTYxODl8MHwxfHNlYXJjaHwxfHxjaW5lbWF0aWMlMjBtb3VudGFpbiUyMGJpa2luZyUyMG5pZ2h0fGVufDB8fHx8MTc4MDg2MjQ4NHww&ixlib=rb-4.1.0&q=85",
-        "description": "Fallback cinematic mountain biking night image in case 241 frames are not available."
-      }
-    ]
+  "responsive_strategy": {
+    "mobile": {
+      "trail_line": "Snap SVG line to the left edge (e.g., left: 24px) to act as a vertical timeline. No complex weaving.",
+      "layout": "Stack hexagons into a vertical list or a tight 2-column grid. Signposts and project cards stack vertically on the right side of the trail line.",
+      "performance": "Disable complex foreground parallax (`z-40`) and heavy blurs on mobile. Keep background images static (`bg-fixed` or standard scrolling) if FPS drops.",
+      "scrims": "Increase scrim opacity to 80-90% universally to ensure text readability on smaller screens."
+    }
   },
   "testing": {
-    "attributes": "All interactive elements must include `data-testid` (e.g., `data-testid=\"download-cv-button\"`, `data-testid=\"lets-talk-button\"`, `data-testid=\"contact-modal-submit\"`)."
-  },
-  "dependencies": {
-    "required": [
-      "framer-motion",
-      "lucide-react",
-      "lenis",
-      "react-fast-marquee",
-      "@radix-ui/react-dialog"
-    ]
+    "attributes_required": true,
+    "instructions": "All interactive elements, buttons, hexagons, signposts, and project cards MUST include a `data-testid` attribute using kebab-case role-based naming."
   }
 }
