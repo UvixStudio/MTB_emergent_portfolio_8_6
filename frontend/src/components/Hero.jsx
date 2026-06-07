@@ -46,7 +46,7 @@ export default function Hero({ onJump }) {
                         initial={{ opacity: 0, y: 24 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.8, ease, delay: 0.1 }}
-                        className="mt-2 font-display text-4xl font-black uppercase leading-[0.95] tracking-tighter text-white sm:text-5xl lg:text-6xl"
+                        className="mt-2 font-display text-3xl font-black uppercase leading-[0.95] tracking-tighter text-white sm:text-5xl lg:text-6xl"
                     >
                         <RotatingRoles />
                     </motion.h1>
