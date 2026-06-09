@@ -4,10 +4,10 @@ export const PROFILE = {
     name: "Yuval Cohen",
     greeting: "Hi! I'm",
     roles: [
-        "CREATIVE TECHNOLOGIST",
-        "CREATIVE DIRECTOR",
+        "CREATIVE|TECHNOLOGIST",
+        "CREATIVE|DIRECTOR",
         "PRODUCER",
-        "AI & 3D SPECIALIST",
+        "AI & 3D|SPECIALIST",
         "MTB RIDER",
     ],
     taglineTop: "I DESIGN. I LEAD. I ELEVATE BRANDS.",

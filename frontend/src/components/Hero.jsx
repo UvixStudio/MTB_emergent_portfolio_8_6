@@ -3,6 +3,7 @@ import { Download, MessageSquare } from "lucide-react";
 import { PROFILE } from "@/data/content";
 import RotatingRoles from "@/components/RotatingRoles";
 import LetsRide from "@/components/LetsRide";
+import ChamferButton from "@/components/ChamferButton";
 
 const ease = [0.22, 1, 0.36, 1];
 
@@ -13,7 +14,8 @@ export default function Hero({ onJump }) {
     return (
         <div className="relative h-full w-full">
             <div className="mx-auto flex h-full max-w-7xl flex-col justify-center px-6 sm:px-8">
-                {/* Top tagline (right on desktop) */}
+
+                {/* Top-right tagline (desktop only) */}
                 <motion.div
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
@@ -30,27 +32,31 @@ export default function Hero({ onJump }) {
                 </motion.div>
 
                 <div className="max-w-3xl">
+                    {/* Greeting line — name bold, rest regular */}
                     <motion.p
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.7, ease }}
-                        className="font-display text-2xl font-medium text-white sm:text-3xl"
+                        className="font-display text-xl font-medium text-white sm:text-2xl"
                     >
-                        {PROFILE.greeting}{" "}
+                        Hi! I&apos;m{" "}
                         <span className="text-gradient-brand font-extrabold">
                             {PROFILE.name}
                         </span>
+                        {" "}— MTB Rider and a
                     </motion.p>
 
-                    <motion.h1
+                    {/* Rotating role title — fixed 2-line height */}
+                    <motion.div
                         initial={{ opacity: 0, y: 24 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.8, ease, delay: 0.1 }}
-                        className="mt-2 font-display text-3xl font-black uppercase leading-[0.95] tracking-tighter text-white sm:text-5xl lg:text-6xl"
+                        className="mt-3"
                     >
                         <RotatingRoles />
-                    </motion.h1>
+                    </motion.div>
 
+                    {/* Body copy */}
                     <motion.p
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -61,29 +67,32 @@ export default function Hero({ onJump }) {
                         experiences that make an impact.
                     </motion.p>
 
+                    {/* CTA buttons */}
                     <motion.div
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.7, ease, delay: 0.4 }}
                         className="mt-8 flex flex-wrap items-center gap-4"
                     >
-                        <a
-                            data-testid="download-cv-button"
+                        <ChamferButton
+                            as="a"
+                            variant="solid"
                             href={PROFILE.cv}
                             download
-                            className="group inline-flex items-center gap-2 rounded-full bg-brand px-7 py-3.5 font-display text-sm font-bold uppercase tracking-wide text-ink transition-all hover:-translate-y-0.5 hover:shadow-[0_10px_30px_-8px_rgba(250,204,21,0.6)]"
+                            data-testid="download-cv-button"
                         >
-                            <Download size={17} strokeWidth={2.5} />
+                            <Download size={16} strokeWidth={2.5} />
                             Download CV
-                        </a>
-                        <button
-                            data-testid="lets-talk-button"
+                        </ChamferButton>
+
+                        <ChamferButton
+                            variant="ghost"
                             onClick={openContact}
-                            className="group inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/5 px-7 py-3.5 font-display text-sm font-bold uppercase tracking-wide text-white backdrop-blur-sm transition-all hover:-translate-y-0.5 hover:border-brand hover:text-brand"
+                            data-testid="lets-talk-button"
                         >
-                            <MessageSquare size={17} strokeWidth={2.5} />
+                            <MessageSquare size={16} strokeWidth={2.5} />
                             Let&apos;s Talk
-                        </button>
+                        </ChamferButton>
                     </motion.div>
                 </div>
             </div>
