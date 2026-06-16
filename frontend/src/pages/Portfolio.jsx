@@ -2,6 +2,10 @@ import { useEffect, useRef, useCallback } from "react";
 import Lenis from "lenis";
 import CinematicRide from "@/components/CinematicRide";
 import JourneyPanel from "@/components/JourneyPanel";
+import StationClip from "@/components/StationClip";
+import PowerupHUD from "@/components/PowerupHUD";
+import { JourneyProvider } from "@/context/JourneyContext";
+import { STATIONS } from "@/data/content";
 import About from "@/components/About";
 import Experience from "@/components/Experience";
 import Tools from "@/components/Tools";
@@ -25,6 +29,7 @@ export default function Portfolio() {
             touchMultiplier: 1.4,
         });
         lenisRef.current = lenis;
+        window.__lenis = lenis; // exposed so CinematicRide can lock/unlock scroll
 
         let raf;
         const loop = (t) => {
@@ -37,6 +42,7 @@ export default function Portfolio() {
             cancelAnimationFrame(raf);
             lenis.destroy();
             lenisRef.current = null;
+            if (window.__lenis === lenis) delete window.__lenis;
         };
     }, []);
 
@@ -51,15 +57,21 @@ export default function Portfolio() {
     }, []);
 
     return (
-        <main className="relative bg-ink">
-            <JourneyPanel onJump={handleJump} />
-            <CinematicRide onJump={handleJump} />
-            <About />
-            <Experience />
-            <Tools />
-            <SelectedWorks />
-            <Connect />
-            <ContactModal />
-        </main>
+        <JourneyProvider>
+            <main className="relative bg-ink">
+                <JourneyPanel onJump={handleJump} />
+                <PowerupHUD />
+                <CinematicRide onJump={handleJump} />
+                {STATIONS.map((s, i) => (
+                    <StationClip key={s.id} station={s} index={i} total={STATIONS.length} />
+                ))}
+                <About />
+                <Experience />
+                <Tools />
+                <SelectedWorks />
+                <Connect />
+                <ContactModal />
+            </main>
+        </JourneyProvider>
     );
 }

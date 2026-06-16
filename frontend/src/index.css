@@ -258,6 +258,22 @@ body {
 }
 
 /* ============================================================
+   STATION RUN-CAM — edge-bleeding media mask
+   Mobile: docked bottom, fades up into the dark.
+   Desktop: docked right, melts left into the content.
+   ============================================================ */
+.station-media {
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 26%, #000 100%);
+    mask-image: linear-gradient(to bottom, transparent 0%, #000 26%, #000 100%);
+}
+@media (min-width: 1024px) {
+    .station-media {
+        -webkit-mask-image: linear-gradient(to right, transparent 0%, #000 42%, #000 100%);
+        mask-image: linear-gradient(to right, transparent 0%, #000 42%, #000 100%);
+    }
+}
+
+/* ============================================================
    MARQUEE EDGE FADE
    ============================================================ */
 .edge-fade {

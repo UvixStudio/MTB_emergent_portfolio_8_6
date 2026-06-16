@@ -224,6 +224,99 @@ export const WORKS = [
     },
 ];
 
+// Each waypoint defines a "slow zone": while scrolling between scrollStart
+// and scrollEnd, the video creeps from timeStart → timeEnd (near-stop ~5%),
+// giving the user time to read the card. Outside the zones the video plays
+// fast (lots of video-seconds per scroll). Times are video seconds.
+export const WAYPOINTS = [
+    {
+        id: "river",
+        scrollStart: 0.18,
+        scrollEnd: 0.66,
+        timeStart: 9.0,  // 00:09
+        timeEnd: 11.0,   // 00:11
+        cardStart: 0.21,
+        cardEnd: 0.63,
+        accentColor: "#ef4444",
+        label: "OBSTACLE 01",
+        title: "ADAPTIVE\nTHINKING",
+        subtitle: "River Crossing",
+        bullets: [
+            "Real projects hit unexpected obstacles — I spot them early",
+            "Adapt fast, restructure the plan, keep the goal in sight",
+            "Pivot decisively when needed — deliver what truly matters",
+        ],
+    },
+];
+
+// The three collectable power-ups, accumulated in the persistent HUD as the
+// rider descends past each station.
+export const POWERUPS = [
+    { id: "adaptive",   label: "Adaptive Thinking",   color: "#ef4444", icon: "alert" },
+    { id: "systems",    label: "Systems Builder",     color: "#22d3ee", icon: "systems" },
+    { id: "leadership", label: "Empowered Leadership", color: "#facc15", icon: "leadership" },
+];
+
+// "Stations" — the gamified skill beats. Each is its own darkened, themed
+// section: a shot of the rider + the skill topic + flag + collectable icon.
+export const STATIONS = [
+    {
+        id: "adaptive",
+        n: "01",
+        kicker: "Obstacle 01 · River Crossing",
+        title: "Adaptive Thinking",
+        accent: "#ef4444",
+        icon: "alert", // lucide map in Station.jsx
+        frame: "/ride/ride_0240.webp",
+        clip: "/stations/river.mp4",
+        collectAt: 1.45, // seconds — when the rider hits the river
+        readout: "River Crossing",
+        intro: "Every real project hits the river — the obstacle you didn't plan for.",
+        bullets: [
+            "Spot obstacles early — read the trail before it breaks you",
+            "Adapt fast: restructure the plan, keep the goal in sight",
+            "Pivot decisively when needed — deliver what truly matters",
+        ],
+        powerup: "Adaptive Thinking",
+    },
+    {
+        id: "systems",
+        n: "02",
+        kicker: "Obstacle 02 · The Bridge",
+        title: "Systems Builder",
+        accent: "#22d3ee",
+        icon: "systems",
+        clip: "/stations/systems.mp4",
+        collectAt: 1.4,
+        readout: "Building the Bridge",
+        intro: "The gap others can't cross — I build the bridge while the wheels keep turning.",
+        bullets: [
+            "Design systems, pipelines and automations that scale",
+            "Turn chaos into repeatable, reliable workflows",
+            "Build custom tools where off-the-shelf falls short",
+        ],
+        powerup: "Systems Builder",
+    },
+    {
+        id: "leadership",
+        n: "03",
+        kicker: "Obstacle 03 · The Group Ride",
+        title: "Empowered Leadership",
+        accent: "#facc15",
+        icon: "leadership",
+        clip: "/stations/leadership.mp4",
+        collectAt: 1.4,
+        readout: "Leading the Line",
+        intro: "A trail is better ridden together — I lead the line and bring the crew home.",
+        bullets: [
+            "Connect people and align them around one vision",
+            "Empower teams — share knowledge, grow others",
+            "Direct from concept to delivery, end to end",
+        ],
+        powerup: "Empowered Leadership",
+    },
+];
+
 export const TOOLS = {
     row1: [
         "DaVinci Resolve",

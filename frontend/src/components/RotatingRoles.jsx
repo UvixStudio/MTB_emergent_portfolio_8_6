@@ -55,7 +55,7 @@ export default function RotatingRoles() {
     return (
         /* Outer wrapper: fixed height = always 2 lines, no layout jump */
         <span
-            className="relative block font-display text-4xl font-black uppercase tracking-tighter sm:text-5xl lg:text-6xl"
+            className="relative block font-display text-5xl font-black uppercase tracking-tighter sm:text-5xl lg:text-6xl"
             style={{ minHeight: "2.0em", lineHeight: "0.95" }}
             aria-live="polite"
             aria-label={roles[idx].replace("|", " ")}
