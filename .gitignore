@@ -98,3 +98,11 @@ frontend/public/ride/
 frontend/src/components/Hero.bak.jsx
 frontend/src/graphify-out/
 **/graphify-out/
+
+# Heavy raw scene assets (3D GLB/FBX up to 44MB) — curated copies live in public/projects/_scene/
+frontend/public/site assets/
+**/*.glb
+**/*.fbx
+
+# Scene image staging (not needed in repo yet)
+frontend/public/projects/_scene/

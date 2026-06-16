@@ -140,6 +140,140 @@ export const EXPERIENCE = [
     },
 ];
 
+// ── Projects model (richer than WORKS) — real content from the deck. ──
+// `category` powers a future filter. `caseStudy` (optional) drives the
+// project-detail modal as a uniform Brief→Planning→Strategy→Build→Result story.
+export const PROJECT_CATEGORIES = [
+    "All",
+    "Creative Direction",
+    "Immersive / AR",
+    "AI Video",
+    "3D / Game",
+];
+
+export const PROJECTS = [
+    {
+        slug: "coderz",
+        title: "CoderZ",
+        role: "Creative Director & Producer",
+        year: "2020 — 2023",
+        category: "Creative Direction",
+        accent: "var(--cp-director)",
+        thumb: "/projects/coderz.jpeg",
+        tagline:
+            "Scaling a startup into an award-winning global EdTech leader through gamified 3D learning, a full rebrand & live broadcast production.",
+        metrics: [
+            { v: "100+", l: "videos & live broadcasts" },
+            { v: "3×", l: "global league finals" },
+            { v: "3×", l: "annual course output" },
+        ],
+    },
+    {
+        slug: "paymax",
+        title: "Paymax",
+        role: "Senior Art Director · Unity / WebGL & AR",
+        year: "2016 — 2019",
+        category: "Immersive / AR",
+        accent: "var(--cp-ai)",
+        thumb: "/projects/paymax.jpeg",
+        tagline:
+            "Leading immersive 3D lottery AR experiences (native & web) — including patent-backed 'Scan-to-Play' titles for the New York Lottery.",
+    },
+    {
+        slug: "beit-hagefen",
+        title: "Beit Ha'Gefen · Santa's Room",
+        role: "Large-Scale Immersive Production",
+        year: "2026",
+        category: "Immersive / AR",
+        accent: "var(--cp-ai)",
+        thumb: null,
+        tagline:
+            "A four-wall immersive installation blending Christmas, Hanukkah & Ramadan — built on a structured AI architecture & large-format print pipeline.",
+        // Flagship case study — folders map 1:1 to these stages.
+        caseStudy: [
+            {
+                stage: "The Brief",
+                body: "A walk-through 'Santa Room' for Beit Ha'Gefen, a Jewish-Arab cultural center in Haifa — one festive space weaving three holidays into a single spatial narrative. Four asymmetrical steel-frame PVC walls, up to 2.5m × 6m, with a 7-day turnaround.",
+            },
+            {
+                stage: "Research & Planning",
+                body: "The whole room was rebuilt as a spatial planning system from real measurements. A color-coded A/B/C/D wall system created a shared language between creative, client, print vendors and installation teams.",
+            },
+            {
+                stage: "Creative Strategy",
+                body: "Generating whole walls in one AI pass broke continuity — so continuity anchors (windows, arches, fireplaces, circular focal points) were planned first, then individual assets were generated separately and composited into unified environments.",
+            },
+            {
+                stage: "Pipeline Architecture",
+                body: "Composition-guided generation from color-zone sketches + a structured prompt architecture (GPT-assisted @img tagging and JSON-style prompts) pushed Nano Banana, Seedream & Flux on Freepik to their limits while holding precise cross-wall continuity.",
+            },
+            {
+                stage: "Execution",
+                body: "Four walls built modularly: Wall C (fireplace & window), Wall B (Santa's wall + hidden bedroom), Wall A (inner bedroom), Wall D (a massive circular stained-glass vitrage split into three holiday sections via up to 14 tagged references + Photoshop Harmonize blending).",
+            },
+            {
+                stage: "Result & Impact",
+                body: "Finalized at 1:10 ratio, ~400 DPI for large-format PVC. Hundreds of visitors through the season with live Santa interactions and constant social sharing — and a generative production methodology that still drives my workflows today.",
+            },
+        ],
+    },
+    {
+        slug: "promee",
+        title: "Promee",
+        role: "AI-Assisted Promo Video",
+        year: "2025",
+        category: "AI Video",
+        accent: "var(--cp-director)",
+        thumb: "/projects/promee.jpeg",
+        tagline:
+            "An artistic tribute to iconic Israeli creators — my first end-to-end generative post-production pipeline (Freepik imagery + Kling video).",
+    },
+    {
+        slug: "digitel-tlv",
+        title: "Digitel TLV",
+        role: "Social Video & 3D",
+        year: "2025",
+        category: "AI Video",
+        accent: "var(--cp-about)",
+        thumb: null,
+        tagline:
+            "A playful summer social campaign that solved controllable Hebrew typography inside generative 3D — Flux Kontext, local Hunyuan 3D, Adobe Dimension & Kling, finished in DaVinci Resolve.",
+    },
+    {
+        slug: "bone-bash",
+        title: "The Next Big Bang in 3D",
+        role: "Talk · Ludo TLV · Bone Bash",
+        year: "2025",
+        category: "3D / Game",
+        accent: "var(--cp-projects)",
+        thumb: "/projects/bonebash.jpeg",
+        tagline:
+            "A full 2D-to-3D RPG production workflow presented as the Bone Bash game concept — ideation to web deployment, with a custom-trained style model for absolute consistency.",
+    },
+    {
+        slug: "ten-li-rocknroll",
+        title: "Ten Li Rock'n'Roll",
+        role: "Tislam Tribute · Kan 11",
+        year: "2025",
+        category: "AI Video",
+        accent: "var(--cp-director)",
+        thumb: null,
+        tagline:
+            "Bringing an unfilmed rock memory to life with AI — character consistency, motion & cinematic lipsync compositing.",
+    },
+    {
+        slug: "baboon-of-jafa",
+        title: "Baboon of Jafa",
+        role: "AI Remix",
+        year: "2025",
+        category: "AI Video",
+        accent: "var(--cp-projects)",
+        thumb: null,
+        tagline:
+            "Turning an Instagram story into a surreal biker legend through a generative character-swap video pipeline.",
+    },
+];
+
 export const WORKS = [
     {
         title: "CoderZ",
@@ -249,6 +383,29 @@ export const WAYPOINTS = [
     },
 ];
 
+// The opening "Planner / Big Picture" station — an AR-glasses route-planning
+// overview. Waypoints are the creative-architect process, positioned along a
+// trail map drawn in SVG. Background is a single still; HUD is all code.
+export const PLANNER = {
+    accent: "#22d3ee",
+    bg: "/ride/ride_0002.webp", // placeholder vista — swap for the generated valley
+    kicker: "Big Picture · Route Planning",
+    title: "The Planner",
+    intro: "Before the descent — I read the whole mountain. Every project starts on the cliff: mapping the route, the obstacles and the resources before the first pedal stroke.",
+    statuses: ["Collecting data…", "Analyzing route…", "Mapping obstacles…", "Ready to go — game on!"],
+    // normalized positions (% of the scene) along the planned trail
+    waypoints: [
+        { x: 20, y: 26, label: "Kickoff & Brief" },
+        { x: 38, y: 36, label: "Research" },
+        { x: 28, y: 49, label: "Creative Crack" },
+        { x: 50, y: 55, label: "Gantt & Resources" },
+        { x: 40, y: 68, label: "Production Plan" },
+        { x: 62, y: 72, label: "Obstacles Mapped" },
+        { x: 54, y: 84, label: "Build & Optimize" },
+        { x: 74, y: 88, label: "Go-Live" },
+    ],
+};
+
 // The three collectable power-ups, accumulated in the persistent HUD as the
 // rider descends past each station.
 export const POWERUPS = [
@@ -314,6 +471,21 @@ export const STATIONS = [
             "Direct from concept to delivery, end to end",
         ],
         powerup: "Empowered Leadership",
+    },
+];
+
+export const TESTIMONIALS = [
+    {
+        name: "Meni Shukrun",
+        role: "Full Stack Architect · Group Leader",
+        rel: "Worked with Yuval on the same team · 2023",
+        quote: "Together with the talented CoderZ team we crafted 3D virtual worlds where students practice coding and science. I came to appreciate Yuval's multi-disciplinary expertise — art, design, gaming, composition, UI, modeling, video editing and UX — with a strong grasp of both the theoretical and practical.",
+    },
+    {
+        name: "Ronnie Noy",
+        role: "Building products at Wix.com",
+        rel: "Yuval's client · 2019",
+        quote: "Yuval has a great combination of creativity and professionalism, with an ability to quickly grasp concepts and turn out exceptional visuals adjusting to many styles and needs. A true graphic artist with great product understanding and valuable inputs.",
     },
 ];
 

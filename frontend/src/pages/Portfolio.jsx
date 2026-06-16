@@ -9,7 +9,9 @@ import { STATIONS } from "@/data/content";
 import About from "@/components/About";
 import Experience from "@/components/Experience";
 import Tools from "@/components/Tools";
-import SelectedWorks from "@/components/SelectedWorks";
+import ProjectsGallery from "@/components/ProjectsGallery";
+import Testimonials from "@/components/Testimonials";
+import ClosingStrip from "@/components/ClosingStrip";
 import Connect from "@/components/Connect";
 import ContactModal from "@/components/ContactModal";
 
@@ -68,7 +70,9 @@ export default function Portfolio() {
                 <About />
                 <Experience />
                 <Tools />
-                <SelectedWorks />
+                <ProjectsGallery />
+                <Testimonials />
+                <ClosingStrip />
                 <Connect />
                 <ContactModal />
             </main>
