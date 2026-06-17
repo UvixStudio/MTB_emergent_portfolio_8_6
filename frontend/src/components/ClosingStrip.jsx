@@ -33,9 +33,14 @@ export default function ClosingStrip() {
                     whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true }}
                     transition={{ duration: 0.7, ease, delay: 0.05 }}
-                    className="mt-5 max-w-3xl font-display text-4xl font-black uppercase leading-[0.95] tracking-tighter text-white drop-shadow-[0_6px_20px_rgba(0,0,0,0.7)] sm:text-6xl"
+                    className="mt-6 max-w-5xl font-display font-black uppercase text-white drop-shadow-[0_6px_20px_rgba(0,0,0,0.7)]"
+                    style={{
+                        fontSize: "clamp(2.75rem, 10vw, 8.5rem)",
+                        lineHeight: 0.86,
+                        letterSpacing: "-0.04em",
+                    }}
                 >
-                    Let's take it to the<br />
+                    Let&apos;s take it to the<br />
                     <span className="text-gradient-brand">next level</span>
                 </motion.h2>
 

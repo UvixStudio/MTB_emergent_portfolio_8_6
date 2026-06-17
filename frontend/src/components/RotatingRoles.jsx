@@ -55,13 +55,18 @@ export default function RotatingRoles() {
     return (
         /* Outer wrapper: fixed height = always 2 lines, no layout jump */
         <span
-            className="relative block font-display text-5xl font-black uppercase tracking-tighter sm:text-5xl lg:text-6xl"
-            style={{ minHeight: "2.0em", lineHeight: "0.95" }}
+            className="relative block font-display font-black uppercase"
+            style={{
+                fontSize: "clamp(2.5rem, 6.2vw, 5.25rem)",
+                lineHeight: 0.92,
+                letterSpacing: "-0.03em",
+                minHeight: "2.0em",
+            }}
             aria-live="polite"
             aria-label={roles[idx].replace("|", " ")}
         >
             {/* Invisible ghost text holds the 2-line space always */}
-            <span aria-hidden="true" className="invisible select-none block leading-[0.95]">
+            <span aria-hidden="true" className="invisible select-none block leading-[0.88]">
                 {longestParts[0]}
                 {longestParts[1] && <><br />{longestParts[1]}</>}
             </span>
@@ -78,7 +83,7 @@ export default function RotatingRoles() {
                         filter: "blur(4px)",
                         transition: { duration: 0.25, ease: "easeIn" },
                     }}
-                    className="absolute inset-0 text-gradient-brand block leading-[0.95]"
+                    className="absolute inset-0 text-gradient-brand block leading-[0.88]"
                 >
                     {twoLines ? (
                         <>

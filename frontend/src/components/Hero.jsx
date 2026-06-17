@@ -33,20 +33,28 @@ export default function Hero({ onJump }) {
                     <span className="mt-3 ml-auto block h-0.5 w-16 bg-brand" />
                 </motion.div>
 
-                <div className="max-w-3xl">
+                <div className="max-w-4xl">
                     {/* Greeting line — name bold, rest regular; clean break on mobile */}
                     <motion.p
                         initial={{ opacity: 0, y: 24, filter: "blur(6px)" }}
                         animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
                         transition={{ duration: 0.8, ease, delay: 0.15 }}
-                        className="font-display text-xl font-semibold text-white sm:text-2xl"
+                        className="font-display font-semibold text-white"
+                        style={{
+                            fontSize: "clamp(1.125rem, 1.6vw, 1.5rem)",
+                            letterSpacing: "-0.005em",
+                            lineHeight: 1.2,
+                        }}
                     >
                         Hi! I&apos;m{" "}
                         <span className="text-gradient-brand font-extrabold">
                             {PROFILE.name}
                         </span>
                         <span className="hidden sm:inline"> — MTB Rider and a</span>
-                        <span className="mt-1 block text-base font-medium text-white/85 sm:hidden">
+                        <span
+                            className="mt-1 block font-medium text-white/85 sm:hidden"
+                            style={{ fontSize: "clamp(0.95rem, 4vw, 1.125rem)" }}
+                        >
                             MTB Rider and a
                         </span>
                     </motion.p>
@@ -65,8 +73,12 @@ export default function Hero({ onJump }) {
                     <motion.p
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.7, ease, delay: 0.25 }}
-                        className="mt-6 hidden max-w-xl text-base leading-relaxed text-white/75 sm:block sm:text-lg"
+                        transition={{ duration: 0.7, ease, delay: 0.35 }}
+                        className="mt-7 hidden max-w-xl leading-relaxed text-white/80 sm:block"
+                        style={{
+                            fontSize: "clamp(1rem, 1.15vw, 1.25rem)",
+                            letterSpacing: "0.005em",
+                        }}
                     >
                         I design ideas. I build systems. I turn complex ideas into
                         experiences that make an impact.

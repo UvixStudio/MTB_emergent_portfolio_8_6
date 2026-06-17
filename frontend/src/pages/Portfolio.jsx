@@ -9,7 +9,9 @@ import { STATIONS } from "@/data/content";
 import About from "@/components/About";
 import Experience from "@/components/Experience";
 import Tools from "@/components/Tools";
-import ProjectsGallery from "@/components/ProjectsGallery";
+import ProjectHybridGallery from "@/components/ProjectHybridGallery";
+import Cursor from "@/components/Cursor";
+import TrailDivider from "@/components/TrailDivider";
 import Testimonials from "@/components/Testimonials";
 import ClosingStrip from "@/components/ClosingStrip";
 import Connect from "@/components/Connect";
@@ -60,6 +62,7 @@ export default function Portfolio() {
 
     return (
         <JourneyProvider>
+            <Cursor />
             <main className="relative bg-ink">
                 <JourneyPanel onJump={handleJump} />
                 <PowerupHUD />
@@ -67,10 +70,14 @@ export default function Portfolio() {
                 {STATIONS.map((s, i) => (
                     <StationClip key={s.id} station={s} index={i} total={STATIONS.length} />
                 ))}
+                <TrailDivider n="01" label="About Me" accent="var(--cp-about)" />
                 <About />
+                <TrailDivider n="02" label="Experience" accent="var(--cp-director)" />
                 <Experience />
+                <TrailDivider n="03" label="AI & Innovation" accent="var(--cp-ai)" />
                 <Tools />
-                <ProjectsGallery />
+                <TrailDivider n="04" label="Selected Works" accent="var(--cp-projects)" />
+                <ProjectHybridGallery />
                 <Testimonials />
                 <ClosingStrip />
                 <Connect />

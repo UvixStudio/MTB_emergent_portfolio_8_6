@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { motion, AnimatePresence, useMotionValue, useSpring } from "framer-motion";
+import { motion, AnimatePresence, useMotionValue, useSpring, useTransform } from "framer-motion";
 import { ArrowUpRight, Mountain } from "lucide-react";
 import { PROJECTS, PROJECT_CATEGORIES } from "@/data/content";
 import { Reveal, TrailHeading } from "@/components/Primitives";

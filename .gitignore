@@ -106,3 +106,12 @@ frontend/public/site assets/
 
 # Scene image staging (not needed in repo yet)
 frontend/public/projects/_scene/
+
+# Playwright MCP testing artifacts (screenshots, snapshots, console logs)
+.playwright-mcp/
+
+# Local working screenshots at repo root (Claude Code playwright captures)
+/*.png
+
+# Local working plans not meant for the repo
+/claude-code-plan*.md

@@ -7,11 +7,14 @@
    ============================================================ */
 @layer base {
     :root {
-        /* --- Brand palette --- */
-        --ink:        #0a0a0a;
-        --ink-2:      #0e0e0e;
-        --surface:    #141414;
-        --surface-2:  #1c1c1c;
+        /* --- Brand palette ---
+           Night-mountain navy replaces near-black; tones stay neutral enough
+           for the yellow brand to pop and for white text to keep AAA contrast. */
+        --ink:        #0e1a2b;  /* base — deep navy */
+        --ink-2:      #17293b;  /* surface tint — slightly lifted navy */
+        --ink-deep:   #060b13;  /* deepest accent / scrims */
+        --surface:    #1a2c41;
+        --surface-2:  #22384f;
         --brand:      #facc15;
         --brand-soft: #fde047;
         --brand-deep: #eab308;
@@ -88,6 +91,18 @@ body {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     overflow-x: hidden;
+}
+
+/* Hide native cursor only when the custom cursor is mounted (fine pointer + motion ok).
+   Inputs and textareas keep their text caret. */
+html.has-custom-cursor,
+html.has-custom-cursor * {
+    cursor: none !important;
+}
+html.has-custom-cursor input,
+html.has-custom-cursor textarea,
+html.has-custom-cursor [contenteditable="true"] {
+    cursor: text !important;
 }
 
 .font-display { font-family: var(--font-display); }
