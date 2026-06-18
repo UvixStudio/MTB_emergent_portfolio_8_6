@@ -222,26 +222,29 @@ function NetflixCard({ p, isActive, isDimmed, onHover, onLeave, onClick }) {
 
 /* ── Horizontal elevation silhouette below the cards ──────────── */
 function ElevationStrip({ projects, hoveredSlug, onHover, onLeave }) {
-    if (projects.length < 2) return null;
-
     const W = 1000;
     const H = 180;
-    const PAD = { top: 38, right: 56, bottom: 40, left: 56 };
+    const PAD_TOP = 38;
+    const PAD_RIGHT = 56;
+    const PAD_BOTTOM = 40;
+    const PAD_LEFT = 56;
 
     const points = useMemo(
         () =>
             projects.map((p, i) => {
-                const xRange = W - PAD.left - PAD.right;
-                const yRange = H - PAD.top - PAD.bottom;
+                const xRange = W - PAD_LEFT - PAD_RIGHT;
+                const yRange = H - PAD_TOP - PAD_BOTTOM;
                 const x =
-                    PAD.left +
+                    PAD_LEFT +
                     (i / Math.max(1, projects.length - 1)) * xRange;
                 const impact = META[p.slug]?.impact ?? 5;
-                const y = PAD.top + ((10 - impact) / 10) * yRange;
+                const y = PAD_TOP + ((10 - impact) / 10) * yRange;
                 return { x, y, slug: p.slug, title: p.title, impact };
             }),
         [projects]
     );
+
+    if (projects.length < 2) return null;
 
     /* Summit = the peak with the highest impact */
     const summitIdx = points.reduce(
@@ -265,7 +268,7 @@ function ElevationStrip({ projects, hoveredSlug, onHover, onLeave }) {
         linePath += ` C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${p2.x} ${p2.y}`;
     }
 
-    const baseY = H - PAD.bottom;
+    const baseY = H - PAD_BOTTOM;
     const last = points[points.length - 1];
     const first = points[0];
     const areaPath = `${linePath} L ${last.x} ${baseY} L ${first.x} ${baseY} Z`;
@@ -329,9 +332,9 @@ function ElevationStrip({ projects, hoveredSlug, onHover, onLeave }) {
 
                 {/* baseline (ground) */}
                 <line
-                    x1={PAD.left}
+                    x1={PAD_LEFT}
                     y1={baseY}
-                    x2={W - PAD.right}
+                    x2={W - PAD_RIGHT}
                     y2={baseY}
                     stroke="rgba(255,255,255,0.18)"
                     strokeWidth="1"
