@@ -8,7 +8,6 @@ export const PROFILE = {
         "CREATIVE|DIRECTOR",
         "PRODUCER",
         "AI & 3D|SPECIALIST",
-        "MTB RIDER",
     ],
     taglineTop: "I DESIGN. I LEAD. I ELEVATE BRANDS.",
     taglineSub: "THROUGH CREATIVITY, STRATEGY & TECHNOLOGY.",

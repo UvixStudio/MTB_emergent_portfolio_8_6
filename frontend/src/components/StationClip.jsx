@@ -122,7 +122,14 @@ export default function StationClip({ station, index = 0, total = 3 }) {
                     playsInline
                     preload="auto"
                     className="station-media absolute bottom-0 left-0 right-0 h-[64%] w-full object-cover lg:inset-y-0 lg:left-auto lg:right-0 lg:h-full lg:w-[66%]"
-                    style={{ filter: "contrast(1.05) saturate(1.08)", opacity: revealed ? 1 : 0, transition: "opacity 0.55s ease" }}
+                    style={{
+                        /* keep the rider/action centered in the visible
+                           area despite the left-fade mask (mask hides 42% on lg) */
+                        objectPosition: "60% center",
+                        filter: "contrast(1.05) saturate(1.08)",
+                        opacity: revealed ? 1 : 0,
+                        transition: "opacity 0.55s ease",
+                    }}
                 />
                 {/* theme tint pooling toward the content side */}
                 <div className="pointer-events-none absolute inset-0" style={{ background: `radial-gradient(90% 70% at 78% 50%, ${a}1c, transparent 60%)` }} />
@@ -196,8 +203,11 @@ export default function StationClip({ station, index = 0, total = 3 }) {
                 </div>
             </motion.div>
 
-            {/* ── Content (left) ── */}
-            <motion.div style={{ y: yText }} className="relative z-10 mx-auto w-full max-w-6xl px-6 sm:px-8">
+            {/* ── Content (left) — anchored further left on desktop ── */}
+            <motion.div
+                style={{ y: yText }}
+                className="relative z-10 mx-auto w-full max-w-6xl px-6 sm:px-8 lg:mx-0 lg:max-w-none lg:pl-[5vw]"
+            >
                 <div className="max-w-lg">
                     {/* mobile HUD row */}
                     <div className="mb-6 flex items-center justify-between lg:hidden">
@@ -267,25 +277,71 @@ export default function StationClip({ station, index = 0, total = 3 }) {
                         ))}
                     </ul>
 
-                    <AnimatePresence>
-                        {collected && (
+                    {/* MTB-style hex badge under paragraph — fills when collected */}
+                    <motion.div
+                        initial={{ opacity: 0, y: 18 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        viewport={{ once: true }}
+                        transition={{ duration: 0.55, ease, delay: 0.35 }}
+                        className="mt-9 inline-flex items-center gap-4"
+                    >
+                        <div className="relative h-16 w-16 sm:h-[68px] sm:w-[68px]">
+                            {/* Outer hex — fills with accent when collected */}
                             <motion.div
-                                initial={{ opacity: 0, scale: 0.8, y: 8 }}
-                                animate={{ opacity: 1, scale: 1, y: 0 }}
-                                exit={{ opacity: 0 }}
-                                transition={{ type: "spring", stiffness: 240, damping: 18 }}
-                                className="mt-8 inline-flex items-center gap-2.5 py-2 pl-2 pr-4"
-                                style={{ clipPath: clip(9), background: `${a}22`, border: `1px solid ${a}66` }}
+                                className="absolute inset-0"
+                                style={{
+                                    clipPath: HEX,
+                                    background: collected ? a : "rgba(255,255,255,0.10)",
+                                }}
+                                animate={
+                                    collected
+                                        ? {
+                                              filter: [
+                                                  `drop-shadow(0 0 4px ${a})`,
+                                                  `drop-shadow(0 0 18px ${a})`,
+                                                  `drop-shadow(0 0 4px ${a})`,
+                                              ],
+                                          }
+                                        : {}
+                                }
+                                transition={{ duration: 1.8, repeat: Infinity }}
+                            />
+                            {/* Inner hex — dark core so icon stays legible */}
+                            <div
+                                className="absolute inset-[3px] grid place-items-center"
+                                style={{
+                                    clipPath: HEX,
+                                    background: "#0b0b0d",
+                                }}
                             >
-                                <span className="grid h-5 w-5 place-items-center rounded-full" style={{ background: a }}>
-                                    <Check size={13} strokeWidth={3} className="text-black" />
-                                </span>
-                                <span className="text-[12px] font-bold uppercase tracking-wide" style={{ color: a }}>
-                                    Power-up collected · {station.powerup}
-                                </span>
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
+                                <Icon
+                                    size={26}
+                                    strokeWidth={2.3}
+                                    style={{
+                                        color: collected ? a : "rgba(255,255,255,0.45)",
+                                    }}
+                                />
+                            </div>
+                        </div>
+                        <div>
+                            <span
+                                className="font-display text-[10px] font-bold uppercase tracking-[0.28em]"
+                                style={{
+                                    color: collected ? a : "rgba(255,255,255,0.4)",
+                                }}
+                            >
+                                {collected ? "Power-up collected" : "Power-up pending"}
+                            </span>
+                            <p
+                                className="mt-1 font-display text-[13px] font-bold uppercase tracking-tight"
+                                style={{
+                                    color: collected ? "#fff" : "rgba(255,255,255,0.55)",
+                                }}
+                            >
+                                {station.powerup}
+                            </p>
+                        </div>
+                    </motion.div>
                 </div>
             </motion.div>
         </section>

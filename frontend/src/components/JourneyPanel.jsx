@@ -42,37 +42,46 @@ export default function JourneyPanel({ onJump }) {
                         style={{ height: trackHeight }}
                     />
 
-                    <ul className="space-y-4">
+                    <ul className="space-y-3.5">
                         {CHECKPOINTS.map((cp, i) => {
-                            const active = i <= activeIdx;
+                            const isActive = i === activeIdx;
+                            const isPast = i < activeIdx;
                             return (
                                 <li key={cp.n} className="relative">
                                     <button
                                         onClick={() => onJump(cp.anchor)}
                                         data-testid={`journey-nav-${cp.anchor}`}
-                                        className="group flex w-full items-start gap-3 text-left"
+                                        className="group flex w-full items-center gap-3 text-left"
                                     >
-                                        {/* Flag */}
+                                        {/* Flag — yellow ONLY when active, faded white otherwise */}
                                         <span
-                                            className="absolute -left-7 top-0.5 grid place-items-center transition-transform group-hover:scale-110"
+                                            className="absolute -left-7 top-1/2 grid -translate-y-1/2 place-items-center transition-all"
                                             style={{
-                                                color: cp.color,
-                                                opacity: active ? 1 : 0.4,
+                                                color: isActive
+                                                    ? "var(--brand)"
+                                                    : isPast
+                                                    ? "rgba(255,255,255,0.55)"
+                                                    : "rgba(255,255,255,0.28)",
                                             }}
                                         >
-                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                            <svg
+                                                width="14"
+                                                height="14"
+                                                viewBox="0 0 24 24"
+                                                fill="currentColor"
+                                            >
                                                 <path d="M5 3v18h1.6v-7.2l11.4.0-2.6-3.9L19 6H6.6V3z" />
                                             </svg>
                                         </span>
                                         <span
-                                            className="font-display text-base font-extrabold leading-none"
-                                            style={{ color: active ? cp.color : "rgba(255,255,255,0.5)" }}
-                                        >
-                                            {cp.n}
-                                        </span>
-                                        <span
-                                            className="text-[11px] font-bold uppercase leading-tight tracking-wide transition-colors"
-                                            style={{ color: active ? "#fff" : "rgba(255,255,255,0.45)" }}
+                                            className="text-[11px] font-bold uppercase leading-tight tracking-[0.16em] transition-colors"
+                                            style={{
+                                                color: isActive
+                                                    ? "#fff"
+                                                    : isPast
+                                                    ? "rgba(255,255,255,0.65)"
+                                                    : "rgba(255,255,255,0.4)",
+                                            }}
                                         >
                                             {cp.label}
                                         </span>

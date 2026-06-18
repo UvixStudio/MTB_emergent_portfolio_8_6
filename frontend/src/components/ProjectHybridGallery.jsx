@@ -49,10 +49,17 @@ function orderProjects(list) {
     });
 }
 
-/* ── Portrait card — flex-expands when active ────────────────── */
+/* ── Portrait card — flex-expands when active ──────────────────
+   Active card sequence (avoids text jump):
+     1. flex-grow + scale + opacity rise   (0–550ms)
+     2. meta text fades in                 (delayed 380ms, 320ms duration)
+   Reverse on leave: text fades out first, card shrinks after. */
 function NetflixCard({ p, isActive, isDimmed, onHover, onLeave, onClick }) {
-    /* Flex weights — one card always wide, others compact */
-    const flexWeight = isActive ? 4 : 0.95;
+    /* Flex weights tuned so the active card dominates the row.
+       active=5.5 + 7 others×0.55 ≈ active takes ~58% of the width.
+       Dimmed cards get strong opacity drop + slight scale-down so the
+       hierarchy reads as "one project at a time", not eight competing tiles. */
+    const flexWeight = isActive ? 5.5 : 0.55;
 
     return (
         <motion.button
@@ -64,11 +71,12 @@ function NetflixCard({ p, isActive, isDimmed, onHover, onLeave, onClick }) {
             data-cursor="view"
             data-cursor-label="View"
             data-testid={`hybrid-card-${p.slug}`}
-            className="group relative block h-full flex-1 cursor-pointer overflow-hidden text-left outline-none"
+            className="group relative block h-full flex-1 cursor-pointer text-left outline-none"
             style={{ clipPath: chamfer(12) }}
             animate={{
                 flexGrow: flexWeight,
-                opacity: isDimmed ? 0.55 : 1,
+                opacity: isDimmed ? 0.32 : 1,
+                scale: isActive ? 1.02 : 0.94,
             }}
             transition={{ duration: 0.55, ease }}
         >
@@ -100,34 +108,59 @@ function NetflixCard({ p, isActive, isDimmed, onHover, onLeave, onClick }) {
                 }}
             />
 
-            {/* brand-color border ring when active */}
+            {/* Edge glow when active — NO stroke border, just radiant glow on edges */}
             <motion.div
                 aria-hidden="true"
                 className="pointer-events-none absolute inset-0"
-                animate={{ opacity: isActive ? 1 : 0 }}
-                transition={{ duration: 0.4, ease }}
+                animate={{
+                    opacity: isActive ? 1 : 0,
+                }}
+                transition={{ duration: 0.55, ease }}
                 style={{
                     boxShadow:
-                        "inset 0 0 0 1.5px rgba(250,204,21,0.55)",
+                        "inset 0 0 40px 4px rgba(250,204,21,0.22), 0 0 36px 6px rgba(250,204,21,0.32)",
                     clipPath: chamfer(12),
                 }}
             />
 
-            {/* category — top (only when active, so dimmed cards stay clean) */}
-            <AnimatePresence>
-                {isActive && (
-                    <motion.span
-                        key="cat"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        transition={{ duration: 0.3, ease }}
-                        className="absolute left-4 top-4 text-[9px] font-bold uppercase tracking-[0.22em] text-white/65 sm:left-5 sm:top-5"
-                    >
-                        {p.category}
-                    </motion.span>
-                )}
-            </AnimatePresence>
+            {/* Pulsing inner glow accent — gentle breathing */}
+            {isActive && (
+                <motion.div
+                    aria-hidden="true"
+                    className="pointer-events-none absolute inset-0"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: [0.4, 0.8, 0.4] }}
+                    transition={{
+                        duration: 2.6,
+                        repeat: Infinity,
+                        ease: "easeInOut",
+                    }}
+                    style={{
+                        boxShadow:
+                            "inset 0 0 60px 6px rgba(250,204,21,0.18)",
+                        clipPath: chamfer(12),
+                    }}
+                />
+            )}
+
+            {/* Category ribbon — diagonal top-right (chamfered for slash look) */}
+            <div
+                className="pointer-events-none absolute right-0 top-0 z-10"
+                style={{
+                    clipPath:
+                        "polygon(20px 0, 100% 0, 100% 100%, 0 100%)",
+                    background: "rgba(6,11,19,0.92)",
+                    backdropFilter: "blur(4px)",
+                    WebkitBackdropFilter: "blur(4px)",
+                }}
+            >
+                <span
+                    className="block py-1.5 pl-6 pr-4 text-[9px] font-bold uppercase tracking-[0.2em]"
+                    style={{ color: "var(--brand)" }}
+                >
+                    {p.category}
+                </span>
+            </div>
 
             {/* Title — always visible at bottom (smaller, refined) */}
             <div className="absolute inset-x-0 bottom-0 p-3.5 sm:p-4">
@@ -141,15 +174,32 @@ function NetflixCard({ p, isActive, isDimmed, onHover, onLeave, onClick }) {
                     {p.title}
                 </h3>
 
-                {/* Expanded content — slides in when active */}
+                {/* Expanded content — 2-phase reveal: flex grows first,
+                    THEN text fades in (delay 0.38s). On exit, text fades
+                    out fast (0.18s, no delay) before the flex shrinks. */}
                 <AnimatePresence initial={false}>
                     {isActive && (
                         <motion.div
                             key="meta"
-                            initial={{ opacity: 0, height: 0, y: 6 }}
-                            animate={{ opacity: 1, height: "auto", y: 0 }}
-                            exit={{ opacity: 0, height: 0, y: 6 }}
-                            transition={{ duration: 0.35, ease }}
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: "auto" }}
+                            exit={{ opacity: 0, height: 0 }}
+                            transition={{
+                                opacity: {
+                                    duration: 0.32,
+                                    delay: 0.38,
+                                    ease,
+                                },
+                                height: {
+                                    duration: 0.32,
+                                    delay: 0.38,
+                                    ease,
+                                },
+                            }}
+                            style={{
+                                /* On exit, override the delay so text leaves first */
+                                transitionDelay: "0s",
+                            }}
                             className="overflow-hidden"
                         >
                             <p className="mt-1.5 text-[9px] font-bold uppercase tracking-[0.18em] text-brand">
@@ -175,8 +225,8 @@ function ElevationStrip({ projects, hoveredSlug, onHover, onLeave }) {
     if (projects.length < 2) return null;
 
     const W = 1000;
-    const H = 160;
-    const PAD = { top: 28, right: 30, bottom: 36, left: 30 };
+    const H = 180;
+    const PAD = { top: 38, right: 56, bottom: 40, left: 56 };
 
     const points = useMemo(
         () =>
@@ -188,10 +238,18 @@ function ElevationStrip({ projects, hoveredSlug, onHover, onLeave }) {
                     (i / Math.max(1, projects.length - 1)) * xRange;
                 const impact = META[p.slug]?.impact ?? 5;
                 const y = PAD.top + ((10 - impact) / 10) * yRange;
-                return { x, y, slug: p.slug, title: p.title };
+                return { x, y, slug: p.slug, title: p.title, impact };
             }),
         [projects]
     );
+
+    /* Summit = the peak with the highest impact */
+    const summitIdx = points.reduce(
+        (mi, p, i) => (p.impact > points[mi].impact ? i : mi),
+        0
+    );
+    const summit = points[summitIdx];
+    const startP = points[0];
 
     /* Catmull-Rom smooth curve */
     let linePath = `M ${points[0].x} ${points[0].y}`;
@@ -212,17 +270,23 @@ function ElevationStrip({ projects, hoveredSlug, onHover, onLeave }) {
     const first = points[0];
     const areaPath = `${linePath} L ${last.x} ${baseY} L ${first.x} ${baseY} Z`;
 
+    const hoveredP = hoveredSlug
+        ? points.find((p) => p.slug === hoveredSlug)
+        : null;
+
     return (
         <div className="relative w-full">
-            {/* tiny label row */}
-            <div className="mb-2 flex items-center justify-between text-[10px] font-bold uppercase tracking-[0.22em] text-white/40">
-                <span>Climb</span>
-                <span className="text-white/55">
-                    {hoveredSlug
-                        ? points.find((p) => p.slug === hoveredSlug)?.title
-                        : "▲ peak = larger scope"}
+            {/* contextual readout row */}
+            <div className="mb-3 flex items-center justify-between gap-4 text-[10px] font-bold uppercase tracking-[0.22em] text-white/40">
+                <span>Trail · Project Elevation</span>
+                <span className="text-white/65">
+                    {hoveredP
+                        ? `▲ ${hoveredP.title}`
+                        : `Summit · ${summit.title}`}
                 </span>
-                <span>Summit</span>
+                <span>
+                    {points.length} stops · max scope {summit.impact}/10
+                </span>
             </div>
 
             <svg
@@ -239,18 +303,31 @@ function ElevationStrip({ projects, hoveredSlug, onHover, onLeave }) {
                         x2="0"
                         y2="1"
                     >
-                        <stop
-                            offset="0%"
-                            stopColor="rgba(250,204,21,0.32)"
-                        />
-                        <stop
-                            offset="100%"
-                            stopColor="rgba(250,204,21,0)"
-                        />
+                        <stop offset="0%" stopColor="rgba(250,204,21,0.38)" />
+                        <stop offset="100%" stopColor="rgba(250,204,21,0)" />
                     </linearGradient>
+                    {/* diagonal hatching → terrain feel, not generic chart */}
+                    <pattern
+                        id="terrain-hatch"
+                        x="0"
+                        y="0"
+                        width="6"
+                        height="6"
+                        patternUnits="userSpaceOnUse"
+                        patternTransform="rotate(38)"
+                    >
+                        <line
+                            x1="0"
+                            y1="0"
+                            x2="0"
+                            y2="6"
+                            stroke="rgba(250,204,21,0.13)"
+                            strokeWidth="1"
+                        />
+                    </pattern>
                 </defs>
 
-                {/* baseline */}
+                {/* baseline (ground) */}
                 <line
                     x1={PAD.left}
                     y1={baseY}
@@ -260,7 +337,7 @@ function ElevationStrip({ projects, hoveredSlug, onHover, onLeave }) {
                     strokeWidth="1"
                 />
 
-                {/* area + line */}
+                {/* area fill + terrain hatching */}
                 <motion.path
                     d={areaPath}
                     fill="url(#strip-fill)"
@@ -270,21 +347,89 @@ function ElevationStrip({ projects, hoveredSlug, onHover, onLeave }) {
                     transition={{ duration: 1.1, ease }}
                 />
                 <motion.path
+                    d={areaPath}
+                    fill="url(#terrain-hatch)"
+                    initial={{ opacity: 0 }}
+                    whileInView={{ opacity: 0.7 }}
+                    viewport={{ once: true, margin: "-50px" }}
+                    transition={{ duration: 1.1, ease }}
+                />
+                {/* ridge silhouette */}
+                <motion.path
                     d={linePath}
                     fill="none"
-                    stroke="rgba(250,204,21,0.85)"
-                    strokeWidth={1.5}
+                    stroke="rgba(250,204,21,0.9)"
+                    strokeWidth={1.6}
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     initial={{ pathLength: 0 }}
                     whileInView={{ pathLength: 1 }}
                     viewport={{ once: true, margin: "-50px" }}
-                    transition={{ duration: 1.3, ease }}
+                    transition={{ duration: 1.4, ease }}
                 />
 
-                {/* peak markers */}
-                {points.map((pt) => {
+                {/* START flag — white, planted at ground level */}
+                <g transform={`translate(${startP.x} ${baseY})`}>
+                    <line
+                        x1="0"
+                        y1="0"
+                        x2="0"
+                        y2="-18"
+                        stroke="rgba(255,255,255,0.6)"
+                        strokeWidth="1.4"
+                    />
+                    <path
+                        d="M0 -18 L11 -15 L0 -12 Z"
+                        fill="rgba(255,255,255,0.65)"
+                    />
+                </g>
+                <text
+                    x={startP.x - 4}
+                    y={H - 8}
+                    textAnchor="end"
+                    fontFamily="Unbounded, sans-serif"
+                    fontSize="8"
+                    fontWeight="700"
+                    letterSpacing="0.2em"
+                    fill="rgba(255,255,255,0.45)"
+                >
+                    START
+                </text>
+
+                {/* SUMMIT flag — brand color, planted on top of the peak */}
+                <g transform={`translate(${summit.x} ${summit.y})`}>
+                    <line
+                        x1="0"
+                        y1="0"
+                        x2="0"
+                        y2="-22"
+                        stroke="var(--brand)"
+                        strokeWidth="1.5"
+                    />
+                    <path
+                        d="M0 -22 L14 -18 L0 -14 Z"
+                        fill="var(--brand)"
+                    />
+                </g>
+                <text
+                    x={summit.x}
+                    y={summit.y - 28}
+                    textAnchor="middle"
+                    fontFamily="Unbounded, sans-serif"
+                    fontSize="8"
+                    fontWeight="800"
+                    letterSpacing="0.22em"
+                    fill="var(--brand)"
+                >
+                    SUMMIT
+                </text>
+
+                {/* peak markers — interactive */}
+                {points.map((pt, idx) => {
                     const on = pt.slug === hoveredSlug;
+                    const isSummit = idx === summitIdx;
+                    /* Skip the summit point's basic dot — its flag already marks it */
+                    if (isSummit && !on) return null;
                     return (
                         <g
                             key={pt.slug}
@@ -292,7 +437,6 @@ function ElevationStrip({ projects, hoveredSlug, onHover, onLeave }) {
                             onMouseLeave={() => onLeave()}
                             style={{ cursor: "pointer" }}
                         >
-                            {/* pulse halo when active */}
                             {on && (
                                 <motion.circle
                                     cx={pt.x}
@@ -326,7 +470,7 @@ function ElevationStrip({ projects, hoveredSlug, onHover, onLeave }) {
                                 }
                                 strokeWidth={on ? 6 : 0}
                             />
-                            {/* hit target — invisible larger circle */}
+                            {/* invisible larger hit target */}
                             <circle
                                 cx={pt.x}
                                 cy={pt.y}
@@ -338,14 +482,11 @@ function ElevationStrip({ projects, hoveredSlug, onHover, onLeave }) {
                 })}
             </svg>
 
-            {/* x-axis ticks: small + invisible labels (kept minimal) */}
-            <div
-                className="mt-1 flex justify-between text-[9px] font-bold uppercase tracking-[0.22em] text-white/30"
-                style={{ paddingLeft: PAD.left, paddingRight: PAD.right }}
-            >
-                <span>Start</span>
-                <span>{projects.length} stops</span>
-                <span>Summit</span>
+            {/* Optional contextual hint below — kept very minimal */}
+            <div className="mt-2 flex items-center justify-center gap-2 text-[9px] font-bold uppercase tracking-[0.22em] text-white/30">
+                <span className="inline-block h-px w-6 bg-white/15" />
+                <span>Career arc · low → high scope</span>
+                <span className="inline-block h-px w-6 bg-white/15" />
             </div>
         </div>
     );
@@ -437,82 +578,110 @@ export default function ProjectHybridGallery() {
                 <rect width="100%" height="100%" fill="url(#hybrid-grid)" />
             </svg>
 
-            <div className="relative z-10 mx-auto flex w-full max-w-7xl flex-1 flex-col px-6 sm:px-8">
-                {/* Header */}
-                <Reveal>
-                    <TrailHeading
-                        n="04"
-                        label="Selected Works"
-                        color="var(--cp-projects)"
-                    />
-                </Reveal>
-                <Reveal delay={0.08}>
-                    <p className="mt-5 max-w-xl text-[15px] leading-relaxed text-white/60">
-                        Hover a card to climb its peak — the silhouette below
-                        marks where it sits on the trail.
-                    </p>
-                </Reveal>
+            <div className="relative z-10 flex w-full flex-1 flex-col">
+                {/* Header — boxed */}
+                <div className="mx-auto w-full max-w-7xl px-6 sm:px-8">
+                    <Reveal>
+                        <TrailHeading
+                            n="04"
+                            label="Selected Works"
+                            color="var(--cp-projects)"
+                        />
+                    </Reveal>
+                    <Reveal delay={0.08}>
+                        <p className="mt-5 max-w-xl text-[15px] leading-relaxed text-white/60">
+                            Hover a card to climb its peak — the silhouette below
+                            marks where it sits on the trail.
+                        </p>
+                    </Reveal>
 
-                {/* Filter tabs */}
-                <Reveal delay={0.14}>
-                    <div className="mt-8 flex flex-wrap items-center gap-x-7 gap-y-2 border-b border-white/8 pb-1">
-                        {FILTERS.map((f) => {
-                            const on = f === cat;
-                            return (
-                                <button
-                                    key={f}
-                                    onClick={() => setCat(f)}
-                                    className="relative pb-3 font-display text-[12px] font-bold uppercase tracking-[0.16em] transition-colors"
-                                    style={{
-                                        color: on
-                                            ? "#ffffff"
-                                            : "rgba(255,255,255,0.5)",
-                                    }}
-                                    data-cursor="link"
-                                >
-                                    {f}
-                                    {on && (
-                                        <motion.span
-                                            layoutId="hybrid-tab-underline"
-                                            className="absolute -bottom-px left-0 right-0 h-0.5 bg-brand"
-                                            transition={{
-                                                type: "spring",
-                                                stiffness: 380,
-                                                damping: 30,
-                                            }}
-                                        />
-                                    )}
-                                </button>
-                            );
-                        })}
+                    {/* Filter tabs */}
+                    <Reveal delay={0.14}>
+                        <div className="mt-8 flex flex-wrap items-center gap-x-7 gap-y-2 border-b border-white/8 pb-1">
+                            {FILTERS.map((f) => {
+                                const on = f === cat;
+                                return (
+                                    <button
+                                        key={f}
+                                        onClick={() => setCat(f)}
+                                        className="relative pb-3 font-display text-[12px] font-bold uppercase tracking-[0.16em] transition-colors"
+                                        style={{
+                                            color: on
+                                                ? "#ffffff"
+                                                : "rgba(255,255,255,0.5)",
+                                        }}
+                                        data-cursor="link"
+                                    >
+                                        {f}
+                                        {on && (
+                                            <motion.span
+                                                layoutId="hybrid-tab-underline"
+                                                className="absolute -bottom-px left-0 right-0 h-0.5 bg-brand"
+                                                transition={{
+                                                    type: "spring",
+                                                    stiffness: 380,
+                                                    damping: 30,
+                                                }}
+                                            />
+                                        )}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </Reveal>
+                </div>
+
+                {/* Netflix-style row — full-bleed; narrow edge fades stay
+                    out of the way of the active card */}
+                <Reveal delay={0.22} className="relative mt-6 flex-1 lg:flex lg:min-h-0 lg:flex-col">
+                    <div className="relative w-full flex-1 lg:flex lg:min-h-0 lg:flex-col">
+                        {/* Left fade — narrow, only the bg color */}
+                        <div
+                            aria-hidden="true"
+                            className="pointer-events-none absolute left-0 top-0 bottom-0 z-20 w-10 sm:w-14"
+                            style={{
+                                background:
+                                    "linear-gradient(to right, var(--ink), transparent)",
+                            }}
+                        />
+                        {/* Right fade */}
+                        <div
+                            aria-hidden="true"
+                            className="pointer-events-none absolute right-0 top-0 bottom-0 z-20 w-10 sm:w-14"
+                            style={{
+                                background:
+                                    "linear-gradient(to left, var(--ink), transparent)",
+                            }}
+                        />
+
+                        {/* Cards row */}
+                        <div
+                            className="flex h-[55vh] min-h-[420px] w-full gap-2 px-3 sm:gap-2.5 sm:px-4 lg:h-full lg:min-h-0 lg:flex-1 lg:px-6"
+                            onMouseLeave={handleLeave}
+                        >
+                            {shown.map((p) => (
+                                <NetflixCard
+                                    key={p.slug}
+                                    p={p}
+                                    isActive={currentSlug === p.slug}
+                                    isDimmed={
+                                        currentSlug !== null &&
+                                        currentSlug !== p.slug
+                                    }
+                                    onHover={() => handleHover(p.slug)}
+                                    onLeave={handleLeave}
+                                    onClick={() => setActive(p)}
+                                />
+                            ))}
+                        </div>
                     </div>
                 </Reveal>
 
-                {/* Netflix-style row — fills remaining vertical space on desktop */}
-                <Reveal delay={0.22} className="mt-6 flex-1 lg:flex lg:min-h-0 lg:flex-col">
-                    <div
-                        className="flex h-[55vh] min-h-[420px] w-full gap-2.5 sm:gap-3 lg:h-full lg:min-h-0 lg:flex-1"
-                        onMouseLeave={handleLeave}
-                    >
-                        {shown.map((p) => (
-                            <NetflixCard
-                                key={p.slug}
-                                p={p}
-                                isActive={currentSlug === p.slug}
-                                isDimmed={
-                                    currentSlug !== null &&
-                                    currentSlug !== p.slug
-                                }
-                                onHover={() => handleHover(p.slug)}
-                                onLeave={handleLeave}
-                                onClick={() => setActive(p)}
-                            />
-                        ))}
-                    </div>
-                </Reveal>
-
-                {/* Elevation chart below — fixed-ish, sits at the bottom */}
-                <Reveal delay={0.32} className="mt-6 shrink-0 sm:mt-8">
+                {/* Elevation chart below — boxed */}
+                <Reveal
+                    delay={0.32}
+                    className="mx-auto mt-6 w-full max-w-7xl shrink-0 px-6 sm:mt-8 sm:px-8"
+                >
                     <ElevationStrip
                         projects={shown}
                         hoveredSlug={currentSlug}

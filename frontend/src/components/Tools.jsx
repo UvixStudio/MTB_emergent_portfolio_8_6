@@ -4,10 +4,21 @@ import { TOOLS } from "@/data/content";
 import { Reveal, TrailHeading } from "@/components/Primitives";
 import TrailBand from "@/components/TrailBand";
 
-function Chip({ label }) {
+/* Tool name in the marquee — no capsule, no border. Just letterforms in
+   low-opacity white so the row reads like a list of brand wordmarks rather
+   than chips. Hover lifts to full white. A subtle bullet acts as a divider. */
+function ToolName({ label, isFirst }) {
     return (
-        <span className="mx-2 inline-flex items-center rounded-full border border-cp-ai/25 bg-black/50 px-5 py-2.5 font-display text-sm font-medium text-white/80 backdrop-blur-sm transition-colors hover:border-cp-ai/70 hover:text-white">
-            {label}
+        <span className="group inline-flex items-center">
+            {!isFirst && (
+                <span
+                    aria-hidden="true"
+                    className="mx-7 inline-block h-1 w-1 rounded-full bg-white/15"
+                />
+            )}
+            <span className="font-display text-xl font-bold uppercase tracking-[-0.01em] text-white/40 transition-colors duration-300 group-hover:text-white sm:text-2xl">
+                {label}
+            </span>
         </span>
     );
 }
@@ -65,15 +76,17 @@ export default function Tools() {
                 </Reveal>
             </div>
 
-            <div className="relative -mt-6 space-y-4 pb-24 edge-fade">
-                <Marquee speed={34} gradient={false} pauseOnHover>
-                    {TOOLS.row1.map((t) => (
-                        <Chip key={t} label={t} />
+            {/* Wordmark marquees — full-bleed so they read as a flow of
+                brand names against the dark backdrop, not a strip of pills. */}
+            <div className="relative -mt-2 space-y-6 pb-24 edge-fade">
+                <Marquee speed={32} gradient={false} pauseOnHover>
+                    {TOOLS.row1.map((t, i) => (
+                        <ToolName key={t} label={t} isFirst={i === 0} />
                     ))}
                 </Marquee>
-                <Marquee speed={34} direction="right" gradient={false} pauseOnHover>
-                    {TOOLS.row2.map((t) => (
-                        <Chip key={t} label={t} />
+                <Marquee speed={32} direction="right" gradient={false} pauseOnHover>
+                    {TOOLS.row2.map((t, i) => (
+                        <ToolName key={t} label={t} isFirst={i === 0} />
                     ))}
                 </Marquee>
             </div>

@@ -67,9 +67,11 @@ export default function Portfolio() {
                 <JourneyPanel onJump={handleJump} />
                 <PowerupHUD />
                 <CinematicRide onJump={handleJump} />
-                {STATIONS.map((s, i) => (
-                    <StationClip key={s.id} station={s} index={i} total={STATIONS.length} />
-                ))}
+                <div data-stations-zone>
+                    {STATIONS.map((s, i) => (
+                        <StationClip key={s.id} station={s} index={i} total={STATIONS.length} />
+                    ))}
+                </div>
                 <TrailDivider n="01" label="About Me" accent="var(--cp-about)" />
                 <About />
                 <TrailDivider n="02" label="Experience" accent="var(--cp-director)" />
