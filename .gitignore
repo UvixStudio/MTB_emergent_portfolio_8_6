@@ -91,9 +91,6 @@ credentials.json
 desktop.ini
 **/desktop.ini
 
-# Unused scroll-frame sequence (replaced by ride.mp4; kept on disk only)
-frontend/public/ride/
-
 # Local backup files & generated artifacts
 frontend/src/components/Hero.bak.jsx
 frontend/src/graphify-out/
@@ -103,9 +100,6 @@ frontend/src/graphify-out/
 frontend/public/site assets/
 **/*.glb
 **/*.fbx
-
-# Scene image staging (not needed in repo yet)
-frontend/public/projects/_scene/
 
 # Playwright MCP testing artifacts (screenshots, snapshots, console logs)
 .playwright-mcp/
