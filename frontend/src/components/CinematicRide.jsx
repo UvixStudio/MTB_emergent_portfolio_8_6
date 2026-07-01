@@ -1,109 +1,88 @@
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion, useScroll, useTransform, useMotionValueEvent } from "framer-motion";
 import Hero from "@/components/Hero";
 
-const FRAMES = 241;
-const framePath = (i) => `/ride/ride_${String(i).padStart(4, "0")}.webp`;
+const VIDEO_SRC = "/ride.mp4";
+const SECTION_H = "300vh";
 
 export default function CinematicRide({ onJump }) {
     const sectionRef = useRef(null);
-    const canvasRef = useRef(null);
-    const imagesRef = useRef([]);
-    const currentFrame = useRef(0);
+    const videoRef = useRef(null);
+    const targetTime = useRef(0);
+    const rafRef = useRef(null);
     const [ready, setReady] = useState(false);
+    const [isHandoff, setIsHandoff] = useState(false);
 
     const { scrollYProgress } = useScroll({
         target: sectionRef,
         offset: ["start start", "end end"],
     });
 
-    const heroOpacity = useTransform(scrollYProgress, [0, 0.55, 0.72], [1, 1, 0]);
-    const heroY = useTransform(scrollYProgress, [0, 0.72], [0, -50]);
-
-    const draw = useCallback((idx) => {
-        const canvas = canvasRef.current;
-        const img = imagesRef.current[idx];
-        if (!canvas || !img || !img.complete || !img.naturalWidth) return;
-        const ctx = canvas.getContext("2d");
-        const cw = canvas.width;
-        const ch = canvas.height;
-        const ir = img.naturalWidth / img.naturalHeight;
-        const cr = cw / ch;
-        let dw, dh, dx, dy;
-        if (cr > ir) {
-            dw = cw;
-            dh = cw / ir;
-            dx = 0;
-            dy = (ch - dh) / 2;
-        } else {
-            dh = ch;
-            dw = ch * ir;
-            dx = (cw - dw) / 2;
-            dy = 0;
-        }
-        ctx.clearRect(0, 0, cw, ch);
-        ctx.drawImage(img, dx, dy, dw, dh);
-    }, []);
-
-    const resize = useCallback(() => {
-        const canvas = canvasRef.current;
-        if (!canvas) return;
-        const dpr = Math.min(window.devicePixelRatio || 1, 2);
-        canvas.width = window.innerWidth * dpr;
-        canvas.height = window.innerHeight * dpr;
-        draw(currentFrame.current);
-    }, [draw]);
+    const handoffStart = 0.006;
+    const handoffEnd = 0.022;
+    const heroOpacity = useTransform(scrollYProgress, [0, handoffStart, handoffEnd], [1, 0.45, 0]);
+    const heroY = useTransform(scrollYProgress, [0, handoffEnd], [0, -64]);
+    const heroScrimOpacity = useTransform(scrollYProgress, [0, 0.008, handoffEnd], [0, 0.5, 1]);
 
     useEffect(() => {
-        let loaded = 0;
-        let cancelled = false;
-        for (let i = 0; i < FRAMES; i++) {
-            const img = new Image();
-            img.src = framePath(i + 1);
-            img.onload = () => {
-                if (cancelled) return;
-                loaded++;
-                if (i === 0) draw(0);
-                if (loaded >= 12 && !ready) setReady(true);
-                if (loaded === FRAMES) setReady(true);
-            };
-            imagesRef.current[i] = img;
-        }
-        return () => {
-            cancelled = true;
+        const video = videoRef.current;
+        if (!video) return;
+
+        const onMeta = () => {
+            video.currentTime = 0;
+            setReady(true);
         };
+
+        if (video.readyState >= 1) onMeta();
+        else video.addEventListener("loadedmetadata", onMeta, { once: true });
+
+        return () => video.removeEventListener("loadedmetadata", onMeta);
     }, []);
 
     useEffect(() => {
-        resize();
-        window.addEventListener("resize", resize);
-        return () => window.removeEventListener("resize", resize);
-    }, [resize]);
+        const tick = () => {
+            const video = videoRef.current;
+            if (video && !Number.isNaN(video.duration)) {
+                const current = video.currentTime;
+                const next = current + (targetTime.current - current) * 0.2;
+                if (Math.abs(next - current) > 0.003) {
+                    try {
+                        video.currentTime = next;
+                    } catch (_) {}
+                }
+            }
+            rafRef.current = requestAnimationFrame(tick);
+        };
 
-    useMotionValueEvent(scrollYProgress, "change", (p) => {
-        const idx = Math.min(FRAMES - 1, Math.max(0, Math.round(p * (FRAMES - 1))));
-        if (idx !== currentFrame.current) {
-            currentFrame.current = idx;
-            requestAnimationFrame(() => draw(idx));
+        rafRef.current = requestAnimationFrame(tick);
+        return () => cancelAnimationFrame(rafRef.current);
+    }, []);
+
+    useMotionValueEvent(scrollYProgress, "change", (progress) => {
+        const video = videoRef.current;
+        if (video && video.duration) {
+            targetTime.current = Math.max(0, Math.min(video.duration, progress * video.duration));
         }
+        setIsHandoff(progress > 0.004);
     });
 
     return (
         <section
             ref={sectionRef}
             className="relative"
-            style={{ height: "320vh" }}
+            style={{ height: SECTION_H }}
             data-testid="cinematic-ride"
         >
             <div className="sticky top-0 h-screen w-full overflow-hidden bg-ink">
-                <canvas
-                    ref={canvasRef}
-                    className="absolute inset-0 h-full w-full"
+                <video
+                    ref={videoRef}
+                    src={VIDEO_SRC}
+                    muted
+                    playsInline
+                    preload="auto"
+                    className="absolute inset-0 h-full w-full object-cover [filter:contrast(1.06)_saturate(1.08)] [object-position:72%_50%] [transform:scale(1.06)] [transform-origin:50%_100%] sm:[object-position:center] sm:[transform:none]"
                     style={{ opacity: ready ? 1 : 0, transition: "opacity 0.6s ease" }}
                 />
-                {/* Legibility scrims — heavy on the left where text lives */}
-                <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-black/90 via-black/45 to-transparent" />
-                <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/35" />
 
                 {!ready && (
                     <div className="absolute inset-0 grid place-items-center bg-ink">
@@ -114,7 +93,7 @@ export default function CinematicRide({ onJump }) {
                                 style={{ animation: "pedal-spin 0.9s linear infinite" }}
                             />
                             <p className="text-xs uppercase tracking-[0.3em] text-white/50">
-                                Loading the trail…
+                                Loading the trail...
                             </p>
                         </div>
                     </div>
@@ -124,9 +103,17 @@ export default function CinematicRide({ onJump }) {
                     style={{ opacity: heroOpacity, y: heroY }}
                     className="absolute inset-0"
                 >
-                    <Hero onJump={onJump} />
+                    <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-black/80 via-black/35 to-transparent" />
+                    <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-black/25" />
+                    <Hero onJump={onJump} hideDesktopTagline={isHandoff} freezeRoles={isHandoff} />
+                    <motion.div
+                        className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black via-black/75 to-black/35"
+                        style={{ opacity: heroScrimOpacity }}
+                    />
                 </motion.div>
             </div>
         </section>
     );
 }
+
+

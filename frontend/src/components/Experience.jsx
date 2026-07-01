@@ -85,10 +85,13 @@ export default function Experience() {
     return (
         <TrailBand
             id="experience"
-            frame={100}
-            scrim="bottom"
-            tint="rgba(10,10,10,0.6)"
+            src="/projects/_scene/trail-map.png"
+            scrim="left"
+            tint="rgba(14,26,43,0.55)"
             minH="min-h-screen"
+            bgSize="cover"
+            bgPosition="center"
+            bgScale={1.05}
         >
             <div className="mx-auto max-w-7xl px-6 py-28 sm:px-8 sm:py-36">
                 <Reveal>

@@ -11,11 +11,15 @@ const pad = (n) => String(n).padStart(4, "0");
 export default function TrailBand({
     id,
     frame,
+    src,
     scrim = "left",
     tint = "rgba(10,10,10,0.42)",
     children,
     className = "",
     minH = "min-h-screen",
+    bgSize = "cover",
+    bgPosition = "center",
+    bgScale = 1.16,
 }) {
     const ref = useRef(null);
     const { scrollYProgress } = useScroll({
@@ -46,10 +50,10 @@ export default function TrailBand({
                 <div
                     className="absolute inset-0"
                     style={{
-                        backgroundImage: `url(/ride/ride_${pad(frame)}.webp)`,
-                        backgroundSize: "cover",
-                        backgroundPosition: "center",
-                        transform: "scale(1.16)",
+                        backgroundImage: `url(${src || `/ride/ride_${pad(frame)}.webp`})`,
+                        backgroundSize: bgSize,
+                        backgroundPosition: bgPosition,
+                        transform: `scale(${bgScale})`,
                     }}
                 />
             </motion.div>

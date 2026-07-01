@@ -86,3 +86,26 @@ android-sdk/
 credentials.json
 *.key
 .credentials
+
+# Windows junk
+desktop.ini
+**/desktop.ini
+
+# Local backup files & generated artifacts
+frontend/src/components/Hero.bak.jsx
+frontend/src/graphify-out/
+**/graphify-out/
+
+# Heavy raw scene assets (3D GLB/FBX up to 44MB) — curated copies live in public/projects/_scene/
+frontend/public/site assets/
+**/*.glb
+**/*.fbx
+
+# Playwright MCP testing artifacts (screenshots, snapshots, console logs)
+.playwright-mcp/
+
+# Local working screenshots at repo root (Claude Code playwright captures)
+/*.png
+
+# Local working plans not meant for the repo
+/claude-code-plan*.md

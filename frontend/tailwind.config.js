@@ -9,9 +9,10 @@ module.exports = {
                 body: ['"Manrope"', "sans-serif"],
             },
             colors: {
-                ink: "#0A0A0A",
-                "ink-2": "#0E0E0E",
-                surface: "#141414",
+                ink: "#0E1A2B",
+                "ink-2": "#17293B",
+                "ink-deep": "#060B13",
+                surface: "#1A2C41",
                 brand: {
                     DEFAULT: "#FACC15",
                     soft: "#FDE047",
