@@ -1,16 +1,9 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { PROFILE } from "@/data/content";
 
-/**
- * Splits role text on "|" for two-line display.
- * Uses a typewriter effect — characters stream in like AI output,
- * then fade out as a block before the next role types in.
- */
-
-const CHAR_DELAY   = 0.032; // seconds between each character
-const HOLD_MS      = 1800;  // how long to hold the full text before exiting
-const INTERVAL_MS  = 2800;  // total cycle time (must be > type-in + hold)
+const CHAR_DELAY = 0.032;
+const INTERVAL_MS = 2800;
 
 function TypewriterLine({ text }) {
     return (
@@ -30,48 +23,51 @@ function TypewriterLine({ text }) {
     );
 }
 
-export default function RotatingRoles() {
-    const roles  = PROFILE.roles;
+export default function RotatingRoles({ freeze = false }) {
+    const roles = PROFILE.roles;
     const [idx, setIdx] = useState(0);
 
-    // Compute the longest role for each line to set a stable min-height
     const longestTotal = roles.reduce(
-        (max, r) => (r.replace("|", "").length > max.replace("|", "").length ? r : max),
+        (max, role) => (role.replace("|", "").length > max.replace("|", "").length ? role : max),
         ""
     );
     const longestParts = longestTotal.split("|");
 
     useEffect(() => {
-        const t = setInterval(
-            () => setIdx((p) => (p + 1) % roles.length),
-            INTERVAL_MS
-        );
-        return () => clearInterval(t);
-    }, [roles.length]);
+        if (freeze) return undefined;
 
-    const parts    = roles[idx].split("|");
+        const timer = setInterval(() => {
+            setIdx((prev) => (prev + 1) % roles.length);
+        }, INTERVAL_MS);
+
+        return () => clearInterval(timer);
+    }, [freeze, roles.length]);
+
+    const parts = roles[idx].split("|");
     const twoLines = parts.length > 1;
 
     return (
-        /* Outer wrapper: fixed height = always 2 lines, no layout jump */
         <span
             className="relative block font-display font-black uppercase"
             style={{
                 fontSize: "clamp(2.5rem, 6.2vw, 5.25rem)",
                 lineHeight: 0.92,
                 letterSpacing: "-0.03em",
-                minHeight: "2.0em",
+                minHeight: "2em",
             }}
             aria-live="polite"
             aria-label={roles[idx].replace("|", " ")}
         >
-            {/* Invisible ghost text holds the 2-line space always */}
-            <span aria-hidden="true" className="invisible select-none block leading-[0.88]">
+            <span aria-hidden="true" className="invisible block select-none leading-[0.88]">
                 {longestParts[0]}
-                {longestParts[1] && <><br />{longestParts[1]}</>}
+                {longestParts[1] && (
+                    <>
+                        <br />
+                        {longestParts[1]}
+                    </>
+                )}
             </span>
 
-            {/* Animated role — absolutely positioned over the ghost */}
             <AnimatePresence mode="wait">
                 <motion.span
                     key={idx}
@@ -83,7 +79,7 @@ export default function RotatingRoles() {
                         filter: "blur(4px)",
                         transition: { duration: 0.25, ease: "easeIn" },
                     }}
-                    className="absolute inset-0 text-gradient-brand block leading-[0.88]"
+                    className="absolute inset-0 block text-gradient-brand leading-[0.88]"
                 >
                     {twoLines ? (
                         <>

@@ -1,21 +1,18 @@
 import { useState, useMemo, useRef, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { ArrowUpRight, Mountain } from "lucide-react";
+import { motion, AnimatePresence, useScroll, useTransform } from "framer-motion";
+import { ArrowUpRight, Mountain, ChevronLeft, ChevronRight } from "lucide-react";
 import { PROJECTS } from "@/data/content";
 import { Reveal, TrailHeading } from "@/components/Primitives";
 import ProjectModal from "@/components/ProjectModal";
 
-/* Project Elevation Gallery
-   Komoot-style elevation profile where projects sit as peaks along a
-   career timeline. x = year, y = scope/impact. Tabs filter the data.
-   Minimal by design — the chart carries the story, the cards explain it. */
+/* ── Project Elevation Gallery ──────────────────────────────────
+   Komoot/Strava-style elevation profile as main navigation.
+   Projects = peaks on a mountain ridge. x = years, y = scope.
+   Mountain background with parallax depth.
+   Mobile: chart collapses to thin strip, cards stack.          */
 
 const ease = [0.22, 1, 0.36, 1];
 
-/* Per-slug timeline + impact (1=base, 10=summit).
-   Decimal "year" places projects within the year (0.0=Jan, 0.9=Dec) so
-   multiple 2025 pieces don't collapse onto a single x. The displayed
-   year is the integer part. */
 const META = {
     "paymax":           { year: 2018.5, impact: 6 },
     "coderz":           { year: 2022.6, impact: 8 },
@@ -30,32 +27,27 @@ const META = {
 const YEAR_MIN = 2010;
 const YEAR_MAX = 2026;
 const TICKS = [2010, 2014, 2018, 2022, 2026];
+const W = 1200;
+const H = 400;
+const PAD = { top: 48, right: 40, bottom: 64, left: 40 };
+const FILTERS = ["All", "Creative Direction", "Immersive / AR", "AI Video", "3D / Game"];
 
-/* Chart viewBox space (SVG units, not pixels) */
-const W = 1000;
-const H = 340;
-const PAD = { top: 38, right: 30, bottom: 56, left: 30 };
+const chamfer = (c) =>
+    `polygon(0 ${c}px, ${c}px 0, calc(100% - ${c}px) 0, 100% ${c}px, 100% calc(100% - ${c}px), calc(100% - ${c}px) 100%, ${c}px 100%, 0 calc(100% - ${c}px))`;
 
-const FILTERS = [
-    "All",
-    "Creative Direction",
-    "Immersive / AR",
-    "AI Video",
-    "3D / Game",
-];
-
-/* Position a project in the chart viewBox */
-function positionOf(p) {
+function pos(p) {
     const m = META[p.slug] || { year: 2020, impact: 4 };
-    const xRange = W - PAD.left - PAD.right;
-    const yRange = H - PAD.top - PAD.bottom;
-    const x = PAD.left + ((m.year - YEAR_MIN) / (YEAR_MAX - YEAR_MIN)) * xRange;
-    const y = PAD.top + ((10 - m.impact) / 10) * yRange;
-    return { x, y, year: Math.floor(m.year), impact: m.impact };
+    const xR = W - PAD.left - PAD.right;
+    const yR = H - PAD.top - PAD.bottom;
+    return {
+        x: PAD.left + ((m.year - YEAR_MIN) / (YEAR_MAX - YEAR_MIN)) * xR,
+        y: PAD.top + ((10 - m.impact) / 10) * yR,
+        year: Math.floor(m.year),
+        impact: m.impact,
+    };
 }
 
-/* Smooth Catmull-Rom curve through an ordered set of points */
-function smoothPath(points) {
+function smooth(points) {
     if (points.length < 2) return "";
     let d = `M ${points[0].x} ${points[0].y}`;
     for (let i = 0; i < points.length - 1; i++) {
@@ -63,292 +55,163 @@ function smoothPath(points) {
         const p1 = points[i];
         const p2 = points[i + 1];
         const p3 = points[i + 2] || points[i + 1];
-        const cp1x = p1.x + (p2.x - p0.x) / 6;
-        const cp1y = p1.y + (p2.y - p0.y) / 6;
-        const cp2x = p2.x - (p3.x - p1.x) / 6;
-        const cp2y = p2.y - (p3.y - p1.y) / 6;
-        d += ` C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${p2.x} ${p2.y}`;
+        d += ` C ${p1.x + (p2.x - p0.x) / 6} ${p1.y + (p2.y - p0.y) / 6}, ${p2.x - (p3.x - p1.x) / 6} ${p2.y - (p3.y - p1.y) / 6}, ${p2.x} ${p2.y}`;
     }
     return d;
 }
 
-/* ── Single marker on the elevation line ───────────────────────── */
-function PeakMarker({ p, pos, i, hovered, setHovered, onOpen }) {
-    const isOn = hovered === p.slug;
+/* ── Peak marker ─────────────────────────────────────────────── */
+function PeakDot({ p, pt, idx, active, onSelect, onPreview }) {
+    const isOn = active === idx;
     return (
         <g
-            transform={`translate(${pos.x} ${pos.y})`}
+            transform={`translate(${pt.x} ${pt.y})`}
             style={{ cursor: "pointer" }}
-            onMouseEnter={() => setHovered(p.slug)}
-            onMouseLeave={() => setHovered(null)}
-            onClick={() => onOpen(p)}
+            onClick={() => onSelect(p)}
+            onMouseEnter={() => onPreview(idx)}
+            onMouseLeave={() => onPreview(null)}
             data-cursor="view"
             data-cursor-label="View"
-            data-testid={`elev-peak-${p.slug}`}
         >
-            {/* outer halo */}
+            {/* Pulse ring */}
+            {isOn && (
+                <motion.circle
+                    r={6}
+                    fill="none"
+                    stroke="rgba(250,204,21,0.3)"
+                    strokeWidth={2}
+                    initial={{ r: 6, opacity: 0.8 }}
+                    animate={{ r: [6, 18, 6], opacity: [0.8, 0, 0.8] }}
+                    transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                />
+            )}
+            {/* Hover glow */}
             <motion.circle
-                r={isOn ? 14 : 9}
-                fill="rgba(250,204,21,0.18)"
-                animate={{
-                    r: isOn ? [9, 16, 9] : 9,
-                    opacity: isOn ? 1 : 0.6,
-                }}
-                transition={{
-                    duration: 1.4,
-                    repeat: isOn ? Infinity : 0,
-                    ease: "easeInOut",
-                }}
+                r={isOn ? 16 : 10}
+                fill={isOn ? "rgba(250,204,21,0.2)" : "rgba(250,204,21,0)"}
+                animate={{ r: isOn ? 16 : 10 }}
+                transition={{ duration: 0.3, ease }}
             />
-            {/* ring */}
-            <circle
-                r={5.5}
-                fill="none"
-                stroke="rgba(250,204,21,0.9)"
-                strokeWidth={1.4}
-            />
-            {/* core dot */}
-            <circle r={2.6} fill="var(--brand)" />
-            {/* upright stem connecting marker to baseline (subtle) */}
-            <line
-                x1={0}
-                y1={6}
-                x2={0}
-                y2={H - PAD.bottom - pos.y - 4}
-                stroke="rgba(250,204,21,0.18)"
-                strokeWidth={0.6}
-                strokeDasharray="2 3"
-            />
+            {/* Core */}
+            <circle r={isOn ? 6 : 4} fill={isOn ? "var(--brand)" : "rgba(255,255,255,0.35)"} />
+            <circle r={isOn ? 8 : 5} fill="none" stroke={isOn ? "var(--brand)" : "rgba(255,255,255,0.15)"} strokeWidth={isOn ? 1.5 : 1} />
+            {/* Invisible touch area */}
+            <circle r={18} fill="transparent" />
         </g>
     );
 }
 
-/* ── Floating preview card that follows the hovered marker ─────── */
-function PreviewCard({ p, pos, chartRect }) {
-    if (!p || !pos || !chartRect) return null;
-    /* Convert chart viewBox coords → pixel coords inside the chart wrapper */
-    const sx = chartRect.width / W;
-    const sy = chartRect.height / H;
-    const left = pos.x * sx;
-    const top = pos.y * sy;
-    /* Flip card if it would overflow right edge */
-    const flip = left > chartRect.width * 0.65;
-    return (
-        <motion.div
-            initial={{ opacity: 0, y: 6, scale: 0.96 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 6, scale: 0.96 }}
-            transition={{ duration: 0.18, ease }}
-            className="pointer-events-none absolute z-30 w-52"
-            style={{
-                left: flip ? "auto" : left + 16,
-                right: flip ? chartRect.width - left + 16 : "auto",
-                top: top - 90,
-            }}
-        >
-            <div
-                className="overflow-hidden bg-[#0e1a2b]/95 backdrop-blur-md"
-                style={{
-                    border: `1px solid rgba(250,204,21,0.35)`,
-                    boxShadow: "0 18px 38px -16px rgba(0,0,0,0.7)",
-                }}
-            >
-                {p.thumb ? (
-                    <div className="aspect-[16/10] w-full overflow-hidden">
-                        <img
-                            src={p.thumb}
-                            alt={p.title}
-                            className="h-full w-full object-cover"
-                        />
-                    </div>
-                ) : (
-                    <div className="grid aspect-[16/10] w-full place-items-center bg-gradient-to-br from-[#17293b] to-[#0a1424]">
-                        <Mountain
-                            size={26}
-                            strokeWidth={1.5}
-                            className="text-white/25"
-                        />
-                    </div>
-                )}
-                <div className="px-3 py-2.5">
-                    <span className="text-[9px] font-bold uppercase tracking-[0.18em] text-brand">
-                        {p.role}
-                    </span>
-                    <h3 className="mt-0.5 font-display text-[13px] font-black uppercase leading-tight tracking-tight text-white">
-                        {p.title}
-                    </h3>
-                </div>
-            </div>
-        </motion.div>
-    );
-}
-
-/* ── Stat card (matches Komoot Uphill/Downhill cells) ──────────── */
-function StatCell({ label, value, sub }) {
-    return (
-        <div className="border-t border-white/8 pt-4">
-            <div className="font-display text-2xl font-black text-white sm:text-3xl">
-                {value}
-            </div>
-            <div className="mt-1 text-[10px] font-bold uppercase tracking-[0.18em] text-white/45">
-                {label}
-            </div>
-            {sub && (
-                <div className="mt-0.5 text-[11px] text-white/55">{sub}</div>
-            )}
-        </div>
-    );
-}
-
-/* ── Main component ────────────────────────────────────────────── */
+/* ── Main ─────────────────────────────────────────────────────── */
 export default function ProjectElevationGallery() {
     const [cat, setCat] = useState("All");
-    const [active, setActive] = useState(null);
-    const [hovered, setHovered] = useState(null);
-    const [chartRect, setChartRect] = useState(null);
+    const [activeIdx, setActiveIdx] = useState(0);
+    const [previewIdx, setPreviewIdx] = useState(null);
+    const [modalProject, setModalProject] = useState(null);
+    const chartRef = useRef(null);
+    const sectionRef = useRef(null);
 
-    /* Filter + sort + position the projects */
-    const positioned = useMemo(() => {
-        const filtered =
-            cat === "All"
-                ? PROJECTS
-                : PROJECTS.filter((p) => p.category === cat);
-        return filtered
-            .map((p) => ({ ...p, pos: positionOf(p) }))
-            .sort((a, b) => a.pos.x - b.pos.x);
+    /* Parallax */
+    const { scrollYProgress } = useScroll({
+        target: sectionRef,
+        offset: ["start end", "end start"],
+    });
+    const bgY = useTransform(scrollYProgress, [0, 1], ["-8%", "8%"]);
+    const mountainY = useTransform(scrollYProgress, [0, 1], ["-15%", "15%"]);
+
+    const filtered = useMemo(() => {
+        const f = cat === "All" ? PROJECTS : PROJECTS.filter((p) => p.category === cat);
+        return f.map((p) => ({ ...p, pos: pos(p) })).sort((a, b) => a.pos.x - b.pos.x);
     }, [cat]);
 
-    /* Build the silhouette + area-fill paths */
     const { linePath, areaPath } = useMemo(() => {
-        if (positioned.length < 2) {
-            return { linePath: "", areaPath: "" };
-        }
-        const line = smoothPath(positioned.map((p) => p.pos));
-        const first = positioned[0].pos;
-        const last = positioned[positioned.length - 1].pos;
+        if (filtered.length < 2) return { linePath: "", areaPath: "" };
+        const line = smooth(filtered.map((p) => p.pos));
+        const first = filtered[0].pos;
+        const last = filtered[filtered.length - 1].pos;
         const baseY = H - PAD.bottom;
-        const area = `${line} L ${last.x} ${baseY} L ${first.x} ${baseY} Z`;
-        return { linePath: line, areaPath: area };
-    }, [positioned]);
+        return { linePath: line, areaPath: `${line} L ${last.x} ${baseY} L ${first.x} ${baseY} Z` };
+    }, [filtered]);
 
-    /* Derived stats */
-    const stats = useMemo(() => {
-        const years = positioned.map((p) => p.pos.year);
-        const cats = new Set(positioned.map((p) => p.category));
-        return {
-            yearsRange:
-                years.length > 0
-                    ? `${Math.min(...years)}–${Math.max(...years)}`
-                    : "—",
-            count: positioned.length,
-            categories: cats.size,
-            highest:
-                positioned.length > 0
-                    ? positioned.reduce((a, b) =>
-                          a.pos.impact > b.pos.impact ? a : b
-                      ).title
-                    : "—",
-        };
-    }, [positioned]);
+    const activeProject = filtered[activeIdx];
+    const hoveredProject = previewIdx !== null ? filtered[previewIdx] : activeProject;
 
-    const hoveredP = positioned.find((p) => p.slug === hovered);
-
-    /* Measure chart wrapper for preview positioning — ResizeObserver so the
-       preview keeps tracking the SVG when the viewport changes, without an
-       update loop. */
-    const chartRef = useRef(null);
-    useEffect(() => {
-        const node = chartRef.current;
-        if (!node || typeof ResizeObserver === "undefined") return;
-        const update = () => {
-            const r = node.getBoundingClientRect();
-            setChartRect((prev) => {
-                if (prev && prev.width === r.width && prev.height === r.height) {
-                    return prev;
-                }
-                return { width: r.width, height: r.height };
-            });
-        };
-        update();
-        const ro = new ResizeObserver(update);
-        ro.observe(node);
-        return () => ro.disconnect();
-    }, []);
+    /* Nav arrows */
+    const goPrev = () => setActiveIdx((i) => Math.max(0, i - 1));
+    const goNext = () => setActiveIdx((i) => Math.min(filtered.length - 1, i + 1));
 
     return (
         <section
             id="works"
-            className="relative overflow-hidden bg-ink py-24 sm:py-32"
+            ref={sectionRef}
+            className="relative overflow-hidden bg-ink"
             data-testid="project-elevation-gallery"
         >
-            {/* faint topographic grid backdrop */}
-            <svg
-                aria-hidden="true"
-                className="pointer-events-none absolute inset-0 h-full w-full opacity-40"
-                width="100%"
-                height="100%"
+            {/* ── Mountain parallax background ── */}
+            <motion.div
+                className="pointer-events-none absolute inset-0 overflow-hidden"
+                style={{ y: bgY }}
             >
-                <defs>
-                    <pattern
-                        id="elev-grid"
-                        width="56"
-                        height="56"
-                        patternUnits="userSpaceOnUse"
-                    >
-                        <path
-                            d="M 56 0 L 0 0 0 56"
-                            fill="none"
-                            stroke="rgba(255,255,255,0.04)"
-                            strokeWidth="1"
-                        />
-                    </pattern>
-                </defs>
-                <rect width="100%" height="100%" fill="url(#elev-grid)" />
-            </svg>
+                <motion.div
+                    className="absolute inset-0 bg-cover bg-center opacity-[0.07]"
+                    style={{
+                        backgroundImage: "url('/projects/_scene/mountain.png')",
+                        y: mountainY,
+                    }}
+                />
+                {/* Topographic grid overlay */}
+                <svg
+                    aria-hidden="true"
+                    className="absolute inset-0 h-full w-full opacity-[0.03]"
+                    width="100%"
+                    height="100%"
+                >
+                    <defs>
+                        <pattern id="elev-contour" width="80" height="80" patternUnits="userSpaceOnUse">
+                            <path d="M 80 0 L 0 0 0 80" fill="none" stroke="rgba(250,204,21,0.5)" strokeWidth="0.5" />
+                            <circle cx="40" cy="40" r="20" fill="none" stroke="rgba(250,204,21,0.3)" strokeWidth="0.5" />
+                        </pattern>
+                    </defs>
+                    <rect width="100%" height="100%" fill="url(#elev-contour)" />
+                </svg>
+            </motion.div>
 
-            <div className="relative z-10 mx-auto max-w-7xl px-6 sm:px-8">
+            {/* ── Dark gradient overlay for readability ── */}
+            <div
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-0"
+                style={{
+                    background: "linear-gradient(180deg, var(--ink) 0%, transparent 15%, transparent 85%, var(--ink) 100%)",
+                }}
+            />
+
+            {/* ── Content ── */}
+            <div className="relative z-10 mx-auto max-w-7xl px-6 py-24 sm:px-8 sm:py-32">
+                {/* Header */}
                 <Reveal>
-                    <TrailHeading
-                        n="04"
-                        label="Selected Works"
-                        color="var(--cp-projects)"
-                    />
+                    <TrailHeading n="04" label="Selected Works" color="var(--cp-projects)" />
                 </Reveal>
                 <Reveal delay={0.08}>
                     <p className="mt-5 max-w-xl text-[15px] leading-relaxed text-white/60">
-                        A career as an elevation profile. Each peak is a project — the
-                        higher the peak, the deeper the scope. Tap a marker to open
-                        its case.
+                        A career as an elevation profile. Each peak is a project — the higher the summit, the deeper the scope. Scroll, hover peaks, or tap to open a case.
                     </p>
                 </Reveal>
 
-                {/* Filter tabs (Komoot Route|Elevation|Speed style) */}
+                {/* Filter tabs */}
                 <Reveal delay={0.14}>
-                    <div className="mt-10 flex flex-wrap items-center gap-x-7 gap-y-2 border-b border-white/8 pb-1">
+                    <div className="mt-8 flex flex-wrap items-center gap-x-7 gap-y-2 border-b border-white/8 pb-1">
                         {FILTERS.map((f) => {
                             const on = f === cat;
                             return (
-                                <button
-                                    key={f}
-                                    onClick={() => setCat(f)}
+                                <button key={f} onClick={() => { setCat(f); setActiveIdx(0); }}
                                     className="relative pb-3 font-display text-[12px] font-bold uppercase tracking-[0.16em] transition-colors"
-                                    style={{
-                                        color: on
-                                            ? "#ffffff"
-                                            : "rgba(255,255,255,0.5)",
-                                    }}
+                                    style={{ color: on ? "#ffffff" : "rgba(255,255,255,0.5)" }}
                                     data-cursor="link"
                                 >
                                     {f}
                                     {on && (
-                                        <motion.span
-                                            layoutId="elev-tab-underline"
+                                        <motion.span layoutId="elev-tab-line"
                                             className="absolute -bottom-px left-0 right-0 h-0.5 bg-brand"
-                                            transition={{
-                                                type: "spring",
-                                                stiffness: 380,
-                                                damping: 30,
-                                            }}
+                                            transition={{ type: "spring", stiffness: 380, damping: 30 }}
                                         />
                                     )}
                                 </button>
@@ -357,262 +220,228 @@ export default function ProjectElevationGallery() {
                     </div>
                 </Reveal>
 
-                {/* Chart title row */}
-                <Reveal delay={0.18}>
-                    <div className="mt-8 flex items-end justify-between">
-                        <div>
-                            <h3 className="font-display text-2xl font-black uppercase tracking-tight text-white sm:text-3xl">
-                                Project Elevation
-                            </h3>
-                            <p className="mt-1 text-[12px] uppercase tracking-[0.18em] text-white/40">
-                                {cat === "All"
-                                    ? "Whole trail"
-                                    : `Filtered · ${cat}`}
-                            </p>
-                        </div>
-                        <div className="hidden text-right text-[10px] uppercase tracking-[0.22em] text-white/40 sm:block">
-                            ▲ peak = larger scope
-                        </div>
-                    </div>
-                </Reveal>
-
-                {/* The chart */}
-                <Reveal delay={0.24}>
-                    <div ref={chartRef} className="relative mt-6 w-full">
-                        <svg
-                            viewBox={`0 0 ${W} ${H}`}
-                            preserveAspectRatio="none"
-                            className="block w-full"
-                            style={{ height: "auto", aspectRatio: `${W} / ${H}` }}
-                        >
-                            <defs>
-                                <linearGradient
-                                    id="elev-fill"
-                                    x1="0"
-                                    y1="0"
-                                    x2="0"
-                                    y2="1"
+                {/* ── Main: Chart + Active Card side by side ── */}
+                <div className="mt-12 grid grid-cols-1 gap-8 lg:grid-cols-5">
+                    {/* Chart — takes 3/5 on desktop */}
+                    <div className="relative lg:col-span-3">
+                        <Reveal delay={0.18}>
+                            <div className="relative">
+                                {/* Elevation SVG — fills width */}
+                                <svg
+                                    viewBox={`0 0 ${W} ${H}`}
+                                    preserveAspectRatio="none"
+                                    className="block w-full"
+                                    style={{ height: "auto", aspectRatio: `${W} / ${H}` }}
                                 >
-                                    <stop
-                                        offset="0%"
-                                        stopColor="rgba(250,204,21,0.35)"
-                                    />
-                                    <stop
-                                        offset="60%"
-                                        stopColor="rgba(250,204,21,0.10)"
-                                    />
-                                    <stop
-                                        offset="100%"
-                                        stopColor="rgba(250,204,21,0)"
-                                    />
-                                </linearGradient>
-                            </defs>
+                                    <defs>
+                                        <linearGradient id="elev-fill" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="0%" stopColor="rgba(250,204,21,0.3)" />
+                                            <stop offset="100%" stopColor="rgba(250,204,21,0)" />
+                                        </linearGradient>
+                                    </defs>
 
-                            {/* horizontal reference lines */}
-                            {[0.25, 0.5, 0.75].map((r, i) => (
-                                <line
-                                    key={i}
-                                    x1={PAD.left}
-                                    y1={PAD.top + r * (H - PAD.top - PAD.bottom)}
-                                    x2={W - PAD.right}
-                                    y2={PAD.top + r * (H - PAD.top - PAD.bottom)}
-                                    stroke="rgba(255,255,255,0.05)"
-                                    strokeDasharray="2 4"
-                                />
-                            ))}
+                                    {/* Grid lines */}
+                                    {[0.25, 0.5, 0.75].map((r, i) => (
+                                        <line key={i}
+                                            x1={PAD.left} y1={PAD.top + r * (H - PAD.top - PAD.bottom)}
+                                            x2={W - PAD.right} y2={PAD.top + r * (H - PAD.top - PAD.bottom)}
+                                            stroke="rgba(255,255,255,0.04)" strokeDasharray="2 6" />
+                                    ))}
 
-                            {/* baseline */}
-                            <line
-                                x1={PAD.left}
-                                y1={H - PAD.bottom}
-                                x2={W - PAD.right}
-                                y2={H - PAD.bottom}
-                                stroke="rgba(255,255,255,0.15)"
-                            />
+                                    {/* Baseline */}
+                                    <line x1={PAD.left} y1={H - PAD.bottom}
+                                        x2={W - PAD.right} y2={H - PAD.bottom}
+                                        stroke="rgba(255,255,255,0.12)" />
 
-                            {/* timeline x-axis tick marks */}
-                            {TICKS.map((y) => {
-                                const xRange = W - PAD.left - PAD.right;
-                                const x =
-                                    PAD.left +
-                                    ((y - YEAR_MIN) /
-                                        (YEAR_MAX - YEAR_MIN)) *
-                                        xRange;
-                                return (
-                                    <g key={y}>
-                                        <line
-                                            x1={x}
-                                            y1={H - PAD.bottom}
-                                            x2={x}
-                                            y2={H - PAD.bottom + 4}
-                                            stroke="rgba(255,255,255,0.25)"
-                                        />
-                                        <text
-                                            x={x}
-                                            y={H - PAD.bottom + 18}
-                                            textAnchor="middle"
-                                            fontFamily="Unbounded, sans-serif"
-                                            fontSize="9"
-                                            fontWeight="700"
-                                            letterSpacing="0.18em"
-                                            fill="rgba(255,255,255,0.32)"
-                                        >
-                                            {y}
-                                        </text>
-                                    </g>
-                                );
-                            })}
+                                    {/* Year ticks */}
+                                    {TICKS.map((y) => {
+                                        const x = PAD.left + ((y - YEAR_MIN) / (YEAR_MAX - YEAR_MIN)) * (W - PAD.left - PAD.right);
+                                        return (
+                                            <g key={y}>
+                                                <line x1={x} y1={H - PAD.bottom} x2={x} y2={H - PAD.bottom + 6} stroke="rgba(255,255,255,0.2)" />
+                                                <text x={x} y={H - PAD.bottom + 20}
+                                                    textAnchor="middle" fontFamily="Unbounded, sans-serif"
+                                                    fontSize="9" fontWeight="700" letterSpacing="0.18em"
+                                                    fill="rgba(255,255,255,0.3)">
+                                                    {y}
+                                                </text>
+                                            </g>
+                                        );
+                                    })}
 
-                            {/* Area fill */}
-                            <motion.path
-                                d={areaPath}
-                                fill="url(#elev-fill)"
-                                initial={{ opacity: 0 }}
-                                whileInView={{ opacity: 1 }}
-                                viewport={{ once: true, margin: "-50px" }}
-                                transition={{ duration: 1.1, ease }}
-                            />
+                                    {/* Area fill */}
+                                    <motion.path d={areaPath} fill="url(#elev-fill)"
+                                        initial={{ opacity: 0 }} whileInView={{ opacity: 1 }}
+                                        viewport={{ once: true }} transition={{ duration: 1, ease }} />
 
-                            {/* Silhouette line */}
-                            <motion.path
-                                d={linePath}
-                                fill="none"
-                                stroke="rgba(250,204,21,0.95)"
-                                strokeWidth={1.7}
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                initial={{ pathLength: 0 }}
-                                whileInView={{ pathLength: 1 }}
-                                viewport={{ once: true, margin: "-50px" }}
-                                transition={{ duration: 1.4, ease }}
-                            />
+                                    {/* Trail line */}
+                                    <motion.path d={linePath} fill="none"
+                                        stroke="rgba(250,204,21,0.9)" strokeWidth={2}
+                                        strokeLinecap="round" strokeLinejoin="round"
+                                        initial={{ pathLength: 0 }} whileInView={{ pathLength: 1 }}
+                                        viewport={{ once: true }} transition={{ duration: 1.4, ease }} />
 
-                            {/* Markers */}
-                            {positioned.map((p, i) => (
-                                <PeakMarker
-                                    key={p.slug}
-                                    p={p}
-                                    pos={p.pos}
-                                    i={i}
-                                    hovered={hovered}
-                                    setHovered={setHovered}
-                                    onOpen={setActive}
-                                />
-                            ))}
+                                    {/* Peaks as dots */}
+                                    {filtered.map((p, i) => (
+                                        <PeakDot key={p.slug} p={p} pt={p.pos} idx={i}
+                                            active={previewIdx ?? activeIdx}
+                                            onSelect={setModalProject}
+                                            onPreview={setPreviewIdx} />
+                                    ))}
 
-                            {/* Start/finish glyphs */}
-                            {positioned.length > 0 && (
-                                <>
-                                    <g
-                                        transform={`translate(${
-                                            positioned[0].pos.x - 22
-                                        } ${H - PAD.bottom - 8})`}
+                                    {/* Start / Finish flags */}
+                                    {filtered.length > 1 && (
+                                        <>
+                                            <g transform={`translate(${filtered[0].pos.x} ${H - PAD.bottom})`}>
+                                                <polygon points="-4,-14 6,-10 -4,-6" fill="rgba(255,255,255,0.4)" />
+                                                <text x={filtered[0].pos.x - 14} y={H - PAD.bottom + 18}
+                                                    textAnchor="end" fontFamily="Unbounded, sans-serif"
+                                                    fontSize="8" fontWeight="800" letterSpacing="0.2em"
+                                                    fill="rgba(255,255,255,0.3)">START</text>
+                                            </g>
+                                            <g transform={`translate(${filtered[filtered.length - 1].pos.x} ${H - PAD.bottom})`}>
+                                                <path d="M-4,-14 L2,-10 L-4,-6 Z" fill="var(--brand)" />
+                                                <text x={filtered[filtered.length - 1].pos.x + 14} y={H - PAD.bottom + 18}
+                                                    textAnchor="start" fontFamily="Unbounded, sans-serif"
+                                                    fontSize="8" fontWeight="800" letterSpacing="0.2em"
+                                                    fill="var(--brand)">FINISH</text>
+                                            </g>
+                                        </>
+                                    )}
+                                </svg>
+
+                                {/* Peak name label below chart */}
+                                <div className="mt-2 flex items-center justify-between text-[10px] font-bold uppercase tracking-[0.2em]">
+                                    <span className="text-white/30">{filtered.length} peaks · {cat}</span>
+                                    {hoveredProject && (
+                                        <motion.span key={hoveredProject.slug}
+                                            initial={{ opacity: 0, y: 4 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            className="text-brand">
+                                            ▲ {hoveredProject.title}
+                                        </motion.span>
+                                    )}
+                                </div>
+                            </div>
+                        </Reveal>
+                    </div>
+
+                    {/* ── Active project card — 2/5 on desktop ── */}
+                    <div className="lg:col-span-2">
+                        <AnimatePresence mode="wait">
+                            {hoveredProject && (
+                                <motion.div key={hoveredProject.slug}
+                                    initial={{ opacity: 0, y: 20 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0, y: -10 }}
+                                    transition={{ duration: 0.35, ease }}
+                                    className="group"
+                                >
+                                    {/* Image */}
+                                    <div
+                                        className="relative w-full overflow-hidden bg-ink-2"
+                                        style={{ clipPath: chamfer(14) }}
                                     >
-                                        <circle
-                                            r={8}
-                                            fill="rgba(255,255,255,0.06)"
-                                            stroke="rgba(255,255,255,0.25)"
-                                            strokeWidth={0.8}
+                                        {hoveredProject.thumb ? (
+                                            <img src={hoveredProject.thumb} alt={hoveredProject.title}
+                                                className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.04]"
+                                                style={{ aspectRatio: "16/10" }} />
+                                        ) : (
+                                            <div className="grid h-full w-full place-items-center bg-gradient-to-br from-[#17293B] to-[#0a1424]"
+                                                style={{ aspectRatio: "16/10" }}>
+                                                <Mountain size={48} strokeWidth={1.2} className="text-white/15" />
+                                            </div>
+                                        )}
+                                        <div aria-hidden="true" className="absolute inset-0"
+                                            style={{
+                                                background: "linear-gradient(180deg, transparent 35%, rgba(6,11,19,0.55) 70%, rgba(6,11,19,0.97))",
+                                            }}
                                         />
-                                        <polygon
-                                            points="-2,-3 3,0 -2,3"
-                                            fill="rgba(255,255,255,0.55)"
+                                        {/* Brand glow edge */}
+                                        <motion.div aria-hidden="true"
+                                            className="pointer-events-none absolute inset-0"
+                                            style={{ boxShadow: "inset 0 0 40px 4px rgba(250,204,21,0.15)", clipPath: chamfer(14) }}
                                         />
-                                    </g>
-                                    <g
-                                        transform={`translate(${
-                                            positioned[positioned.length - 1]
-                                                .pos.x + 22
-                                        } ${H - PAD.bottom - 8})`}
-                                    >
-                                        <circle
-                                            r={8}
-                                            fill="rgba(250,204,21,0.18)"
-                                            stroke="rgba(250,204,21,0.7)"
-                                            strokeWidth={0.8}
-                                        />
-                                        <path
-                                            d="M-2,-3 L-2,3 L3,1 L-2,-1 Z"
-                                            fill="var(--brand)"
-                                        />
-                                    </g>
-                                </>
-                            )}
-                        </svg>
 
-                        {/* preview card (HTML overlay, positioned in pixel space) */}
-                        <AnimatePresence>
-                            {hoveredP && (
-                                <PreviewCard
-                                    key={hoveredP.slug}
-                                    p={hoveredP}
-                                    pos={hoveredP.pos}
-                                    chartRect={chartRect}
-                                />
+                                        {/* Cat + Year */}
+                                        <div className="absolute left-5 top-5 flex items-center gap-3 text-[10px] font-bold uppercase tracking-[0.2em]">
+                                            <span className="text-brand">{hoveredProject.category}</span>
+                                            <span className="h-1 w-1 rounded-full bg-white/30" />
+                                            <span className="text-white/50">{hoveredProject.year}</span>
+                                        </div>
+
+                                        {/* Title + CTA */}
+                                        <div className="absolute inset-x-0 bottom-0 p-5 sm:p-6">
+                                            <h3 className="font-display text-xl font-black uppercase leading-[0.95] tracking-tight text-white sm:text-2xl">
+                                                {hoveredProject.title}
+                                            </h3>
+                                            <p className="mt-1.5 text-[11px] font-bold uppercase tracking-[0.18em] text-white/55">
+                                                {hoveredProject.role}
+                                            </p>
+                                            <p className="mt-2 max-w-md text-sm leading-relaxed text-white/70 line-clamp-2">
+                                                {hoveredProject.tagline}
+                                            </p>
+                                            <button onClick={() => setModalProject(hoveredProject)}
+                                                className="mt-4 inline-flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.2em] text-brand transition-colors hover:text-white">
+                                                View case study
+                                                <ArrowUpRight size={12} strokeWidth={2.5} />
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {/* Nav arrows */}
+                                    <div className="mt-4 flex items-center justify-between">
+                                        <button onClick={goPrev} disabled={activeIdx === 0}
+                                            className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.2em] text-white/40 transition-colors hover:text-white disabled:opacity-20"
+                                            data-cursor="link">
+                                            <ChevronLeft size={14} />
+                                            Previous
+                                        </button>
+                                        <span className="font-display text-xs font-black tracking-[0.3em] text-white/30">
+                                            {String(activeIdx + 1).padStart(2, "0")}/{String(filtered.length).padStart(2, "0")}
+                                        </span>
+                                        <button onClick={goNext} disabled={activeIdx >= filtered.length - 1}
+                                            className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.2em] text-white/40 transition-colors hover:text-white disabled:opacity-20"
+                                            data-cursor="link">
+                                            Next
+                                            <ChevronRight size={14} />
+                                        </button>
+                                    </div>
+                                </motion.div>
                             )}
                         </AnimatePresence>
                     </div>
-                </Reveal>
+                </div>
 
-                {/* Stat cells (Komoot Uphill/Downhill/Highest/Lowest analog) */}
+                {/* ── Project chips (quick scrub) ── */}
                 <Reveal delay={0.3}>
-                    <div className="mt-10 grid grid-cols-2 gap-x-8 gap-y-6 sm:grid-cols-4">
-                        <StatCell label="Years" value={stats.yearsRange} />
-                        <StatCell
-                            label="Peaks"
-                            value={stats.count}
-                            sub="on this trail"
-                        />
-                        <StatCell label="Disciplines" value={stats.categories} />
-                        <StatCell
-                            label="Summit"
-                            value="▲"
-                            sub={stats.highest}
-                        />
-                    </div>
-                </Reveal>
-
-                {/* Project chips — quick scrubber */}
-                <Reveal delay={0.36}>
                     <div className="mt-12 flex flex-wrap gap-2.5">
-                        {positioned.map((p) => (
-                            <button
-                                key={p.slug}
-                                onMouseEnter={() => setHovered(p.slug)}
-                                onMouseLeave={() => setHovered(null)}
-                                onClick={() => setActive(p)}
-                                className="group inline-flex items-center gap-2 border border-white/10 bg-white/[0.03] px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.14em] text-white/65 transition hover:border-brand/60 hover:text-white"
-                                style={{
-                                    background:
-                                        hovered === p.slug
-                                            ? "rgba(250,204,21,0.10)"
-                                            : "rgba(255,255,255,0.03)",
-                                    borderColor:
-                                        hovered === p.slug
-                                            ? "rgba(250,204,21,0.5)"
-                                            : "rgba(255,255,255,0.10)",
-                                }}
-                                data-cursor="view"
-                                data-cursor-label="Open"
-                                data-testid={`elev-chip-${p.slug}`}
-                            >
-                                <span
-                                    className="inline-block h-1.5 w-1.5 rounded-full"
-                                    style={{ background: "var(--brand)" }}
-                                />
-                                {p.title}
-                                <ArrowUpRight
-                                    size={11}
-                                    strokeWidth={2.5}
-                                    className="opacity-50 transition-opacity group-hover:opacity-100"
-                                />
-                            </button>
-                        ))}
+                        {filtered.map((p, i) => {
+                            const isOn = (previewIdx ?? activeIdx) === i;
+                            return (
+                                <button key={p.slug}
+                                    onClick={() => { setActiveIdx(i); setPreviewIdx(null); }}
+                                    onMouseEnter={() => setPreviewIdx(i)}
+                                    onMouseLeave={() => setPreviewIdx(null)}
+                                    className="group inline-flex items-center gap-2 border px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.14em] text-white/65 transition-all hover:text-white"
+                                    style={{
+                                        borderColor: isOn ? "rgba(250,204,21,0.5)" : "rgba(255,255,255,0.1)",
+                                        background: isOn ? "rgba(250,204,21,0.1)" : "rgba(255,255,255,0.03)",
+                                    }}
+                                    data-cursor="link"
+                                >
+                                    <span className="inline-block h-1.5 w-1.5 rounded-full"
+                                        style={{ background: isOn ? "var(--brand)" : "rgba(255,255,255,0.3)" }}
+                                    />
+                                    {p.title}
+                                </button>
+                            );
+                        })}
                     </div>
                 </Reveal>
             </div>
 
-            <ProjectModal project={active} onClose={() => setActive(null)} />
+            <ProjectModal project={modalProject} onClose={() => setModalProject(null)} />
         </section>
     );
 }

@@ -2,67 +2,68 @@ import { useEffect, useRef, useState } from "react";
 import { motion, useScroll, useTransform, useMotionValueEvent } from "framer-motion";
 import Hero from "@/components/Hero";
 
-/* ── Scroll-scrubbed cinematic intro ────────────────────────────
-   The video time is driven directly by scroll position (scrubbing),
-   so the user keeps full control and can scroll back up freely.
-   No autoplay, no scroll-lock. A lerp smooths the seek.
-────────────────────────────────────────────────────────────────── */
 const VIDEO_SRC = "/ride.mp4";
 const SECTION_H = "300vh";
 
 export default function CinematicRide({ onJump }) {
     const sectionRef = useRef(null);
-    const videoRef   = useRef(null);
+    const videoRef = useRef(null);
     const targetTime = useRef(0);
-    const rafRef     = useRef(null);
+    const rafRef = useRef(null);
     const [ready, setReady] = useState(false);
+    const [isHandoff, setIsHandoff] = useState(false);
 
     const { scrollYProgress } = useScroll({
         target: sectionRef,
         offset: ["start start", "end end"],
     });
 
-    /* Hero fades out as the ride begins */
-    const heroOpacity = useTransform(scrollYProgress, [0, 0.08, 0.16], [1, 1, 0]);
-    const heroY       = useTransform(scrollYProgress, [0, 0.16], [0, -60]);
+    const handoffStart = 0.006;
+    const handoffEnd = 0.022;
+    const heroOpacity = useTransform(scrollYProgress, [0, handoffStart, handoffEnd], [1, 0.45, 0]);
+    const heroY = useTransform(scrollYProgress, [0, handoffEnd], [0, -64]);
+    const heroScrimOpacity = useTransform(scrollYProgress, [0, 0.008, handoffEnd], [0, 0.5, 1]);
 
-    /* Metadata / readiness */
     useEffect(() => {
-        const v = videoRef.current;
-        if (!v) return;
+        const video = videoRef.current;
+        if (!video) return;
+
         const onMeta = () => {
-            v.pause();
-            v.currentTime = 0;
+            video.currentTime = 0;
             setReady(true);
         };
-        if (v.readyState >= 1) onMeta();
-        else v.addEventListener("loadedmetadata", onMeta, { once: true });
-        return () => v.removeEventListener("loadedmetadata", onMeta);
+
+        if (video.readyState >= 1) onMeta();
+        else video.addEventListener("loadedmetadata", onMeta, { once: true });
+
+        return () => video.removeEventListener("loadedmetadata", onMeta);
     }, []);
 
-    /* Smooth lerp toward the scroll target time */
     useEffect(() => {
         const tick = () => {
-            const v = videoRef.current;
-            if (v && !Number.isNaN(v.duration)) {
-                const cur  = v.currentTime;
-                const next = cur + (targetTime.current - cur) * 0.2;
-                if (Math.abs(next - cur) > 0.003) {
-                    try { v.currentTime = next; } catch (_) {}
+            const video = videoRef.current;
+            if (video && !Number.isNaN(video.duration)) {
+                const current = video.currentTime;
+                const next = current + (targetTime.current - current) * 0.2;
+                if (Math.abs(next - current) > 0.003) {
+                    try {
+                        video.currentTime = next;
+                    } catch (_) {}
                 }
             }
             rafRef.current = requestAnimationFrame(tick);
         };
+
         rafRef.current = requestAnimationFrame(tick);
         return () => cancelAnimationFrame(rafRef.current);
     }, []);
 
-    /* Scroll → target time (linear scrub across the section) */
-    useMotionValueEvent(scrollYProgress, "change", (p) => {
-        const v = videoRef.current;
-        if (v && v.duration) {
-            targetTime.current = Math.max(0, Math.min(v.duration, p * v.duration));
+    useMotionValueEvent(scrollYProgress, "change", (progress) => {
+        const video = videoRef.current;
+        if (video && video.duration) {
+            targetTime.current = Math.max(0, Math.min(video.duration, progress * video.duration));
         }
+        setIsHandoff(progress > 0.004);
     });
 
     return (
@@ -92,22 +93,27 @@ export default function CinematicRide({ onJump }) {
                                 style={{ animation: "pedal-spin 0.9s linear infinite" }}
                             />
                             <p className="text-xs uppercase tracking-[0.3em] text-white/50">
-                                Loading the trail…
+                                Loading the trail...
                             </p>
                         </div>
                     </div>
                 )}
 
-                {/* Hero + scrims fade together on scroll */}
                 <motion.div
                     style={{ opacity: heroOpacity, y: heroY }}
                     className="absolute inset-0"
                 >
                     <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-black/80 via-black/35 to-transparent" />
                     <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-black/25" />
-                    <Hero onJump={onJump} />
+                    <Hero onJump={onJump} hideDesktopTagline={isHandoff} freezeRoles={isHandoff} />
+                    <motion.div
+                        className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black via-black/75 to-black/35"
+                        style={{ opacity: heroScrimOpacity }}
+                    />
                 </motion.div>
             </div>
         </section>
     );
 }
+
+
