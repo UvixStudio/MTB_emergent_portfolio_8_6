@@ -312,5 +312,17 @@ Do this rewrite (not a byte-identical copy) every time before pushing. Sync comm
 sed -e "s|frontend/public/projects/|/projects/|g" -e "s|docs/portfolio-redesign/reference-previews/projects/|/projects/thumbs/|" webgl-gallery-v2.html > frontend/public/webgl-gallery-v2.html
 ```
 
+### Touch/mobile behavior (added this session — was previously undefined/broken)
+`IS_TOUCH = matchMedia('(hover: none)').matches`, checked once at module load, branches `buildCard()`'s event wiring:
+- **Touch:** 1st tap on a closed card → `.touch-open` class (mirrors `:hover` via matching CSS: `.card-edge`, `.media img` zoom, `.more` panel — every `:hover` selector on `.proj-card` got a `.touch-open` twin) + starts video if `loc.video` (muted, same as desktop). 2nd tap directly on the `<video>` → toggle play/pause. 2nd tap anywhere else on an already-open card → `window.open(loc.href)`. Corner triangle and `.vid-ui` always excluded from card-level tap handling.
+- Video controls bar auto-fades 2s after last interaction (`.vu-idle` class, opacity 0 + pointer-events none — had to out-specificity the existing `.media.playing .vid-ui{opacity:1}` rule), reappears on any tap inside the card (`flashControls()`).
+- `.media video` is `pointer-events:none` by default (desktop: mouse events belong to the card) but flips to `auto` under `.touch-open` so the tap-to-toggle listener can hit the video element directly.
+- Desktop-only: hex cursor, mousemove tilt/glow, hover-video — untouched, still gated to the non-touch branch.
+- NOT YET verified on a real device/emulator this session — logic only, needs a phone/DevTools touch-emulation pass next time before calling it done.
+- User confirmed end of session: "mobile version needs work, continue tomorrow" — treat as NOT DONE, start next session with DevTools mobile emulation on `webgl-gallery-v2.html` (both root copy via `python -m http.server 3010` and the Vercel-path copy) and fix whatever breaks before touching anything else.
+
+### Commit/push status at end of session (2026-07-08)
+Touch-support changes are staged (`.gitignore` already committed earlier; `docs/.../SESSION-HANDOFF.md` + both `webgl-gallery-v2.html` copies staged, NOT yet committed) — the repo's `.git/hooks/pre-commit` does a full `find .` over the tree every commit and `frontend/node_modules` (repo is 8.5GB) makes that take 8+ minutes on this machine. Background commit was still running when the session ended. NEXT SESSION FIRST STEP: check `git log -1` / `git status` — if the staged touch-support changes never committed, re-run the commit (same background/long-timeout approach) before starting new work, then `git push origin 3d-map-gallery`. Worth fixing the hook itself (add `-not -path "./frontend/node_modules/*" -not -path "./frontend/.git/*"` to its `find`) — user asked about this and it's still unfixed.
+
 ## To resume in a new session
 Paste: "Read `C:\Ai\Mtb_portfolio\docs\portfolio-redesign\SESSION-HANDOFF.md`, then continue from the LAST session section's 'Immediate next step'." Also worth loading `/caveman` mode again if it doesn't persist automatically.

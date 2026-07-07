@@ -108,7 +108,7 @@
         perspective: 750px;
     }
     .proj-card.on { opacity: 1; transform: translateY(0); pointer-events: auto; }
-    .proj-card.on:hover { opacity: 1 !important; }
+    .proj-card.on:hover, .proj-card.on.touch-open { opacity: 1 !important; }
 
     /* slow idle float — card breathes in the air */
     .card-float { width: 100%; animation: card-idle 6s ease-in-out infinite; }
@@ -131,7 +131,7 @@
         opacity: 0;
         transition: opacity 0.3s ease;
     }
-    .proj-card:hover .card-edge { opacity: 1; }
+    .proj-card:hover .card-edge, .proj-card.touch-open .card-edge { opacity: 1; }
 
     /* image on top, full width; text strip flows BELOW it */
     .proj-card .media { height: var(--media-h, 264px); overflow: hidden; }
@@ -140,7 +140,7 @@
         transform: scale(1.0);
         transition: transform 0.7s cubic-bezier(0.22,1,0.36,1), object-position 0.18s ease-out;
     }
-    .proj-card:hover .media img { transform: scale(1.08); }
+    .proj-card:hover .media img, .proj-card.touch-open .media img { transform: scale(1.08); }
 
     /* hover video — fades in over the still image */
     .proj-card .media iframe {
@@ -226,7 +226,12 @@
         max-height: 0; opacity: 0; overflow: hidden;
         transition: max-height 0.55s cubic-bezier(0.22,1,0.36,1), opacity 0.4s ease 0.1s;
     }
-    .proj-card:hover .more { max-height: 260px; opacity: 1; }
+    .proj-card:hover .more, .proj-card.touch-open .more { max-height: 260px; opacity: 1; }
+
+    /* mobile: controls bar auto-fades like a native player, tap to reveal */
+    .proj-card .media.playing .vid-ui.vu-idle { opacity: 0; pointer-events: none; }
+    /* touch tap-to-play/pause needs the video itself to receive the click */
+    .proj-card.touch-open .media video { pointer-events: auto; }
     .proj-card .more p { margin-top: 10px; font-size: 12.5px; line-height: 1.35; color: rgba(230,237,245,0.75); }
     .proj-card .tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
     .proj-card .tags span {
@@ -633,6 +638,8 @@ function attachTilt(card) {
     });
 }
 
+const IS_TOUCH = matchMedia('(hover: none)').matches;
+
 function buildCard(loc) {
     const el = document.createElement('div');
     el.className = 'proj-card';
@@ -738,8 +745,48 @@ function buildCard(loc) {
             setTimeout(() => { if (!media.classList.contains('playing')) vid.pause(); }, 500);
         });
     }
-    // MASTER CARD RULE — every project card gets the hexagon "VIEW PROJECT"
-    // cursor on hover + click-through to its case-study page.
+    // MASTER CARD RULE — touch: no hover, so tap replaces it.
+    // 1st tap on a closed card: expand in place (+ start video if any), no nav.
+    // 2nd tap on the video itself: toggle play/pause, controls flash then fade.
+    // 2nd tap elsewhere on an already-open card: open the case-study page.
+    // (desktop keeps hover + hex cursor + click-through, set up below instead.)
+    if (IS_TOUCH) {
+        let idleTimer;
+        const media = el.querySelector('.media');
+        const flashControls = () => {
+            const ui = media.querySelector('.vid-ui');
+            if (!ui) return;
+            ui.classList.remove('vu-idle');
+            clearTimeout(idleTimer);
+            idleTimer = setTimeout(() => ui.classList.add('vu-idle'), 2000);
+        };
+        el.addEventListener('click', e => {
+            if (e.target.closest('.vid-ui') || e.target.closest('.corner') || document.fullscreenElement) return;
+            if (!el.classList.contains('touch-open')) {
+                e.preventDefault();
+                el.classList.add('touch-open');
+                if (loc.video) {
+                    media.classList.add('playing');
+                    const v = media.querySelector('video');
+                    if (v) v.play().catch(() => {});
+                    flashControls();
+                }
+                return;
+            }
+            const vidEl = e.target.closest('video');
+            if (vidEl) {
+                e.preventDefault();
+                if (vidEl.paused) vidEl.play(); else vidEl.pause();
+                flashControls();
+                return;
+            }
+            if (loc.href && loc.href !== '#') window.open(loc.href, '_blank');
+        });
+        return el;
+    }
+
+    // MASTER CARD RULE (desktop) — every project card gets the hexagon
+    // "VIEW PROJECT" cursor on hover + click-through to its case-study page.
     // video cards: hex shows while the video plays (controls bar excluded).
     // non-video cards: hex shows on any hover, 3D tilt stays on.
     el.addEventListener('mousemove', e => {
