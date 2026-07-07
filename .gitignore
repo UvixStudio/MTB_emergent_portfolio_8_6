@@ -101,6 +101,11 @@ frontend/public/site assets/
 **/*.glb
 **/*.fbx
 
+# Heavy raw project source videos — only the compressed *_web.mp4 (ffmpeg CRF24)
+# copies ship to Vercel; originals (100MB+, over Vercel's file limit) stay local.
+frontend/public/projects/Baboon/Baboon_for_topaz_dancer_GPT_settings04.mp4
+frontend/public/projects/BoneBash/binebash_sora_clean.mp4
+
 # Playwright MCP testing artifacts (screenshots, snapshots, console logs)
 .playwright-mcp/
 

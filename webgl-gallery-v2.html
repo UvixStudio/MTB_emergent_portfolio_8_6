@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>My Creative Journey — WebGL Prototype 02</title>
-<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@700;900&family=Manrope:wght@500;600;700&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;600;700;800&family=Manrope:wght@500;600;700&display=swap" rel="stylesheet" />
 <style>
     :root {
         --ink: #0a1422;
@@ -29,19 +29,50 @@
     }
 
     .hud { position: fixed; z-index: 10; color: #e6edf5; pointer-events: none; }
-    .hud-title { top: 44px; left: 48px; max-width: 460px; }
+    .hud-title {
+        top: 44px; left: 48px; max-width: 640px;
+        display: flex; gap: 18px; align-items: flex-start;
+    }
+    /* staged intro: badge pops → kicker → title letters → typewriter */
+    .title-badge {
+        flex: none; width: 64px; height: 64px;
+        display: grid; place-items: center;
+        background: rgba(0,0,0,0.35);
+        backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+        border: 1px solid rgba(250,204,21,0.35);
+        clip-path: var(--chamfer);
+        opacity: 0; transform: scale(0.4) rotate(-8deg);
+        transition: opacity 0.45s ease, transform 0.65s cubic-bezier(0.34,1.56,0.64,1);
+    }
+    .title-badge.in { opacity: 1; transform: none; }
+    .title-badge svg { width: 40px; height: 40px; }
     .hud-title .kicker {
         font-size: 11px; letter-spacing: 0.34em; text-transform: uppercase;
-        color: var(--brand); font-weight: 700;
+        color: #ffffff; font-weight: 700;
+        opacity: 0; transform: translateY(14px);
+        transition: opacity 0.5s ease, transform 0.5s cubic-bezier(0.22,1,0.36,1);
     }
+    .hud-title .kicker.in { opacity: 1; transform: none; }
     .hud-title h1 {
-        font-family: "Unbounded", sans-serif; font-size: clamp(28px, 3.2vw, 44px);
-        font-weight: 900; letter-spacing: -0.03em; margin-top: 8px; line-height: 1.04;
+        font-family: "Sora", sans-serif; font-size: clamp(28px, 3.2vw, 44px);
+        font-weight: 800; letter-spacing: -0.03em; margin-top: 8px; line-height: 1.04;
+        color: var(--brand);
     }
+    .hud-title h1 .ch {
+        display: inline-block; opacity: 0; transform: translateY(26px) rotate(4deg);
+        transition: opacity 0.45s ease, transform 0.55s cubic-bezier(0.22,1,0.36,1);
+    }
+    .hud-title h1 .ch.in { opacity: 1; transform: none; }
     .hud-title p {
-        margin-top: 12px; font-size: 13.5px; line-height: 1.6; color: rgba(230,237,245,0.62);
-        max-width: 380px;
+        margin-top: 12px; font-family: "Sora", sans-serif; font-weight: 300;
+        font-size: 18px; line-height: 1.5; color: rgba(230,237,245,0.72);
+        max-width: 520px; min-height: 3em;
     }
+    .hud-title p.typing::after {
+        content: "▌"; color: var(--brand);
+        animation: caret-blink 0.8s steps(1) infinite;
+    }
+    @keyframes caret-blink { 50% { opacity: 0; } }
     .hud-hint {
         bottom: 30px; left: 50%; transform: translateX(-50%);
         font-size: 11px; letter-spacing: 0.28em; text-transform: uppercase; color: rgba(230,237,245,0.5);
@@ -68,52 +99,135 @@
 
     /* ---------- project card: image-first, hover reveals the rest ---------- */
     .proj-card {
-        position: fixed; z-index: 8; width: 392px;
-        /* one chamfered corner (top-right); the rest square */
+        position: fixed; z-index: 8; width: 470px;
         clip-path: polygon(0 0, calc(100% - 22px) 0, 100% 22px, 100% 100%, 0 100%);
-        background: rgba(8, 17, 32, 0.58);
-        backdrop-filter: blur(16px);
-        -webkit-backdrop-filter: blur(16px);
-        border: 1px solid rgba(250, 204, 21, 0.22);
         opacity: 0; transform: translateY(46px);
         transition: opacity 0.5s cubic-bezier(0.22,1,0.36,1), transform 0.6s cubic-bezier(0.22,1,0.36,1);
         pointer-events: none;
         overflow: hidden;
+        perspective: 750px;
     }
     .proj-card.on { opacity: 1; transform: translateY(0); pointer-events: auto; }
-    .proj-card.on:hover { opacity: 1 !important; } /* passed-faded card revives on hover */
+    .proj-card.on:hover { opacity: 1 !important; }
 
-    .proj-card .media { height: 280px; overflow: hidden; transition: height 0.55s cubic-bezier(0.22,1,0.36,1); }
+    /* slow idle float — card breathes in the air */
+    .card-float { width: 100%; animation: card-idle 6s ease-in-out infinite; }
+    @keyframes card-idle {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-9px); }
+    }
+    /* 3D tilt inner wrapper */
+    .card-3d { width: 100%; transform-style: preserve-3d; transition: transform 0.18s ease-out; will-change: transform; }
+    /* edge-only glow (yellow → cyan), follows cursor, no white haze over content */
+    .card-edge {
+        position: absolute; inset: 0; z-index: 10; pointer-events: none;
+        clip-path: polygon(0 0, calc(100% - 22px) 0, 100% 22px, 100% 100%, 0 100%);
+        padding: 3px;
+        background: radial-gradient(400px circle at var(--gx, 50%) var(--gy, 50%),
+            rgba(250,204,21,1), rgba(56,214,255,0.75) 48%, transparent 74%);
+        -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+        -webkit-mask-composite: xor;
+        mask-composite: exclude;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+    }
+    .proj-card:hover .card-edge { opacity: 1; }
+
+    /* image on top, full width; text strip flows BELOW it */
+    .proj-card .media { height: var(--media-h, 264px); overflow: hidden; }
     .proj-card .media img {
         width: 100%; height: 100%; object-fit: cover; display: block;
         transform: scale(1.0);
-        transition: transform 0.7s cubic-bezier(0.22,1,0.36,1);
+        transition: transform 0.7s cubic-bezier(0.22,1,0.36,1), object-position 0.18s ease-out;
     }
-    .proj-card:hover .media { height: 220px; }
-    .proj-card:hover .media img { transform: scale(1.1); }
+    .proj-card:hover .media img { transform: scale(1.08); }
 
-    /* dark-navy fade at the bottom of the image, titles sit on it */
-    .proj-card .head {
-        position: relative; margin-top: -78px; padding: 44px 22px 14px;
-        background: linear-gradient(to top, rgba(8,17,32,0.88) 30%, rgba(8,17,32,0.0) 100%);
+    /* hover video — fades in over the still image */
+    .proj-card .media iframe {
+        position: absolute; top: 50%; left: 50%;
+        width: 140%; height: 140%;
+        transform: translate(-50%, -50%);
+        border: 0; pointer-events: none;
+        opacity: 0; transition: opacity 0.45s ease 0.15s;
     }
-    .proj-card .head h3 {
-        font-family: "Unbounded", sans-serif; font-size: 19px; font-weight: 700;
+    .proj-card .media video {
+        position: absolute; inset: 0;
+        width: 100%; height: 100%; object-fit: cover;
+        pointer-events: none;
+        opacity: 0; transition: opacity 0.45s ease 0.15s;
+    }
+    .proj-card .media.playing iframe,
+    .proj-card .media.playing video { opacity: 1; }
+
+    /* themed mini video controls — yellow progress, white icons */
+    .vid-ui {
+        position: absolute; left: 0; right: 0; bottom: 0; z-index: 3;
+        display: flex; align-items: center; gap: 12px;
+        padding: 10px 16px;
+        background: rgba(4,8,15,0.82);
+        backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+        opacity: 0; transition: opacity 0.3s ease;
+        pointer-events: none;
+    }
+    .proj-card .media.playing .vid-ui { opacity: 1; pointer-events: auto; }
+    .vid-ui button {
+        background: none; border: 0; padding: 0; cursor: pointer;
+        width: 34px; height: 34px; flex: none; display: grid; place-items: center;
+    }
+    .vid-ui button svg { width: 20px; height: 20px; fill: #fff; }
+    .vid-ui button:hover svg { fill: var(--brand); }
+    /* sound button — extra generous hit zone */
+    .vid-ui .vu-mute { width: 46px; height: 40px; margin: -4px 0; }
+    .vid-ui .vu-mute svg { width: 22px; height: 22px; }
+
+    /* fullscreen: letterbox the video, hide the still */
+    .proj-card .media:fullscreen { background: #000; }
+    .proj-card .media:fullscreen video { object-fit: contain; }
+    .proj-card .media:fullscreen img { display: none; }
+    .vu-track {
+        flex: 1; height: 4px; position: relative; cursor: pointer;
+        background: rgba(255,255,255,0.25);
+    }
+    .vu-track:hover { height: 6px; }
+    .vu-fill {
+        height: 100%; width: 0%;
+        background: var(--brand);
+        box-shadow: 0 0 8px rgba(250,204,21,0.6);
+    }
+    .vu-time {
+        font-size: 10px; color: #fff; letter-spacing: 0.08em;
+        font-variant-numeric: tabular-nums; flex: none;
+    }
+    .proj-card .media { position: relative; }
+    .proj-card .media img { position: relative; z-index: 1; transition: transform 0.7s cubic-bezier(0.22,1,0.36,1), object-position 0.18s ease-out, opacity 0.5s ease 0.25s; }
+    .proj-card .media.playing img { opacity: 0; }
+
+    /* text strip UNDER the image — translucent black over the live site
+       background (the 3D map shows through the blur) */
+    .proj-card .panel {
+        position: relative; z-index: 2;
+        padding: 14px 22px 16px;
+        background: rgba(0,0,0,0.3);
+        backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+    }
+    .proj-card .panel h3 {
+        font-family: "Sora", sans-serif; font-size: 19px; font-weight: 700;
         color: var(--brand); letter-spacing: -0.01em;
+        transition: transform 0.18s ease-out;
     }
-    .proj-card .head .sub {
+    .proj-card .panel .sub {
         display: block; margin-top: 4px; font-size: 12px; font-weight: 600;
         letter-spacing: 0.14em; text-transform: uppercase; color: #eef3f8;
+        transition: transform 0.18s ease-out;
     }
 
-    /* hidden until hover */
+    /* hidden until hover — expands inside the same panel, no padding seams */
     .proj-card .more {
         max-height: 0; opacity: 0; overflow: hidden;
-        padding: 0 20px;
-        transition: max-height 0.55s cubic-bezier(0.22,1,0.36,1), opacity 0.4s ease 0.1s, padding 0.4s ease;
+        transition: max-height 0.55s cubic-bezier(0.22,1,0.36,1), opacity 0.4s ease 0.1s;
     }
-    .proj-card:hover .more { max-height: 190px; opacity: 1; padding: 2px 20px 18px; }
-    .proj-card .more p { font-size: 12.5px; line-height: 1.6; color: rgba(230,237,245,0.65); }
+    .proj-card:hover .more { max-height: 260px; opacity: 1; }
+    .proj-card .more p { margin-top: 10px; font-size: 12.5px; line-height: 1.35; color: rgba(230,237,245,0.75); }
     .proj-card .tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
     .proj-card .tags span {
         font-size: 9.5px; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase;
@@ -121,16 +235,34 @@
         padding: 4px 9px;
     }
 
-    /* yellow corner triangle with an arrow → project page */
+    /* yellow corner triangle — small, decorative only (no arrow) */
     .proj-card .corner {
-        position: absolute; top: 0; left: 0; width: 52px; height: 52px; z-index: 3;
+        position: absolute; top: 0; left: 0; width: 26px; height: 26px; z-index: 3;
         clip-path: polygon(0 0, 100% 0, 0 100%);
         background: var(--brand);
         display: block; text-decoration: none;
-        transition: width 0.3s ease, height 0.3s ease;
     }
-    .proj-card .corner:hover { width: 62px; height: 62px; }
-    .proj-card .corner svg { position: absolute; top: 9px; left: 9px; width: 16px; height: 16px; }
+    .proj-card .corner svg { display: none; }
+
+    /* hexagon cursor — VIEW PROJECT, shows while a hover-video plays */
+    #cursorHex {
+        position: fixed; z-index: 60; width: 90px; height: 104px;
+        left: 0; top: 0; pointer-events: none;
+        clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
+        background: var(--brand);
+        display: grid; place-items: center;
+        opacity: 0; transform: translate(-50%, -50%) scale(0.4);
+        transition: opacity 0.22s ease, transform 0.3s cubic-bezier(0.34,1.56,0.64,1);
+    }
+    #cursorHex.show { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+    #cursorHex .hx {
+        text-align: center; font-family: "Sora", sans-serif; font-weight: 800;
+        font-size: 11px; line-height: 1.25; letter-spacing: 0.08em;
+        color: var(--ink); text-transform: uppercase;
+    }
+    #cursorHex .hx svg { display: block; width: 18px; height: 18px; margin: 5px auto 0; }
+    .proj-card.hexing { cursor: none; }
+    .proj-card.hexing .vid-ui { cursor: auto; }
 </style>
 </head>
 <body>
@@ -138,9 +270,21 @@
 <div class="scrim"></div>
 
 <div class="hud hud-title">
-    <div class="kicker">Portfolio · Ride the Trail</div>
-    <h1>My Creative Journey</h1>
-    <p>A selection of projects that reflect my passion for creative direction, digital experiences and storytelling. Each mark is a waypoint — scroll to ride between them.</p>
+    <div class="title-badge">
+        <svg viewBox="0 0 40 40" fill="none" stroke="#facc15" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <!-- winding trail -->
+            <path d="M4 36 C 12 30, 8 24, 16 20 S 22 12, 21 7" stroke-dasharray="3 3" opacity="0.85"/>
+            <!-- flagpole -->
+            <path d="M21 7 V 2.5"/>
+            <!-- flag -->
+            <path d="M21 2.5 h 12 l -3.5 4 l 3.5 4 h -12 z" fill="rgba(250,204,21,0.15)"/>
+        </svg>
+    </div>
+    <div class="title-text">
+        <div class="kicker">Portfolio · Ride the Trail</div>
+        <h1>My Creative Journey</h1>
+        <p>A selection of projects that reflect my passion for creative direction, digital experiences and storytelling. Each mark is a waypoint — scroll to ride between them.</p>
+    </div>
 </div>
 <div class="hud hud-hint">Scroll to ride the trail</div>
 
@@ -161,6 +305,11 @@
 </div>
 
 <!-- project cards are generated from the LOCATIONS data (single master component) -->
+<div id="cursorHex">
+    <div class="hx">View<br>Project
+        <svg viewBox="0 0 24 24" fill="none"><path d="M7 17L17 7M17 7H9M17 7v8" stroke="#0a1422" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </div>
+</div>
 
 <script type="importmap">
 { "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js" } }
@@ -390,23 +539,23 @@ const glowTex = (() => {
     return new THREE.CanvasTexture(c);
 })();
 function labelTex(text) {
-    const c = document.createElement('canvas'); c.width = 128; c.height = 64;
+    const c = document.createElement('canvas'); c.width = 256; c.height = 128;
     const g = c.getContext('2d');
-    g.font = '700 38px Manrope, sans-serif';
+    g.font = '700 72px Manrope, sans-serif';
     g.textAlign = 'center'; g.textBaseline = 'middle';
     g.fillStyle = '#facc15';
-    g.fillText(text, 64, 34);
+    g.fillText(text, 128, 68);
     return new THREE.CanvasTexture(c);
 }
 function nameTex(text) {
-    const c = document.createElement('canvas'); c.width = 512; c.height = 80;
+    const c = document.createElement('canvas'); c.width = 1024; c.height = 160;
     const g = c.getContext('2d');
-    g.font = '700 34px Manrope, sans-serif';
+    g.font = '700 60px Manrope, sans-serif';
     g.textAlign = 'center'; g.textBaseline = 'middle';
-    g.letterSpacing = '6px';
-    g.shadowColor = 'rgba(4,8,15,0.9)'; g.shadowBlur = 10;
+    g.letterSpacing = '10px';
+    g.shadowColor = 'rgba(4,8,15,0.9)'; g.shadowBlur = 16;
     g.fillStyle = 'rgba(238,243,248,0.92)';
-    g.fillText(text.toUpperCase(), 256, 42);
+    g.fillText(text.toUpperCase(), 512, 84);
     return new THREE.CanvasTexture(c);
 }
 
@@ -418,78 +567,301 @@ function nameTex(text) {
    ============================================================ */
 const IMG = 'docs/portfolio-redesign/reference-previews/projects/';
 const LOCATIONS = [
-    { t: 0.14, name: 'Bone Bash', sub: '3D & Character Design', side: 'right',
+    { t: 0.14, name: 'Bone Bash', sub: '3D & Character Design', side: 'right', alt: 1840, aspect: '16:9',
+      video: 'frontend/public/projects/BoneBash/bonebash_web.mp4',
       img: IMG + 'magnific__3d-a-male-skeleton-warrior-with-a-staff-and-two-ch__23379.png',
       desc: 'The next big bang in 3D — full character key art, world-building and real-time pipeline.',
       tags: ['3D', 'Character', 'Key Art'], card: true },
-    { t: 0.32, name: 'Baboon of Jafa', sub: 'Brand & Illustration', side: 'left',
+    { t: 0.32, name: 'Baboon of Jafa', sub: 'Brand & Illustration', side: 'right', alt: 1340, aspect: '9:16',
+      video: 'frontend/public/projects/Baboon/baboon_web.mp4',
       img: IMG + 'baboon.jpeg',
       desc: 'A rebellious brand character brought to life — identity, illustration and attitude.',
       tags: ['Brand', 'Illustration'], card: true },
-    { t: 0.50, name: 'Digitel TLV', sub: 'Campaign & Content', side: 'right',
+    { t: 0.50, name: 'Digitel TLV', sub: 'Campaign & Content', side: 'right', alt: 920, aspect: '16:9',
       img: IMG + 'magnific__photo-a-swimming-pool-with-inflatable-letters-spel__23382.jpg',
       desc: 'City-scale campaign content for Tel Aviv residents — playful, bold, unmistakably local.',
       tags: ['Campaign', 'Content'], card: true },
-    { t: 0.68, name: 'Promee', sub: 'Music & Brand', side: 'left',
+    { t: 0.68, name: 'Promee', sub: 'Music & Brand', side: 'right', alt: 640, aspect: '16:9',
       img: IMG + 'magnific__photo-a-30yearold-white-woman-with-dark-hair-and-b__23384.png',
       desc: 'A music brand experience — identity, visual language and release content for Promee.',
       tags: ['Brand', 'Music', 'Content'], card: true },
-    { t: 0.86, name: 'CoderZ', sub: 'Broadcast & Live', side: 'right',
+    { t: 0.86, name: 'CoderZ', sub: 'Broadcast & Live', side: 'right', alt: 380, aspect: '16:9',
       img: IMG + 'magnific__photo-a-45yearold-white-man-with-short-brown-hair-__23381.jpg',
       desc: 'CoderZ League live broadcast — studio design, motion package and on-air identity.',
       tags: ['Broadcast', 'Motion'], card: true },
 ];
 
+/* 3D perspective tilt (codepen pjdzaG style) — per-card mouse tracking */
+function attachTilt(card) {
+    const inner = card.querySelector('.card-3d');
+    const img   = card.querySelector('.media img');
+    const title = card.querySelector('.panel h3');
+    const sub   = card.querySelector('.panel .sub');
+
+    card.addEventListener('mousemove', e => {
+        const r  = card.getBoundingClientRect();
+        const dx = (e.clientX - r.left) / r.width  - 0.5;
+        const dy = (e.clientY - r.top)  / r.height - 0.5;
+        // no tilt while a video is playing — a rotating card moves the
+        // controls out from under the cursor and swallows clicks.
+        // the edge glow still follows the cursor.
+        if (card.querySelector('.media.playing')) {
+            inner.style.transform = 'rotateX(0deg) rotateY(0deg)';
+            img.style.objectPosition = '50% 50%';
+            card.style.setProperty('--gx', `${((dx + 0.5) * 100).toFixed(1)}%`);
+            card.style.setProperty('--gy', `${((dy + 0.5) * 100).toFixed(1)}%`);
+            return;
+        }
+        const rotY =  dx * 30;
+        const rotX = -dy * 22;
+
+        inner.style.transform = `rotateX(${rotX.toFixed(2)}deg) rotateY(${rotY.toFixed(2)}deg)`;
+        card.style.setProperty('--gx', `${((dx + 0.5) * 100).toFixed(1)}%`);
+        card.style.setProperty('--gy', `${((dy + 0.5) * 100).toFixed(1)}%`);
+        img.style.objectPosition = `${(50 + dx * 22).toFixed(1)}% ${(50 + dy * 22).toFixed(1)}%`;
+        title.style.transform = `translate(${(dx * 14).toFixed(1)}px, ${(dy * 14).toFixed(1)}px)`;
+        sub.style.transform   = `translate(${(dx * 9).toFixed(1)}px, ${(dy * 9).toFixed(1)}px)`;
+        card.style.filter = `drop-shadow(${(-dx * 26).toFixed(1)}px ${(-dy * 26).toFixed(1)}px 32px rgba(0,0,0,0.7))`;
+    });
+
+    card.addEventListener('mouseleave', () => {
+        inner.style.transform = '';
+        img.style.objectPosition = '50% 50%';
+        title.style.transform = '';
+        sub.style.transform = '';
+        card.style.filter = '';
+    });
+}
+
 function buildCard(loc) {
     const el = document.createElement('div');
     el.className = 'proj-card';
+    // per-project media aspect: '16:9' default, '9:16' vertical (social) etc.
+    const [aw, ah] = (loc.aspect || '16:9').split(':').map(Number);
+    const vertical = ah > aw;
+    const cardW = vertical ? 330 : 660;
+    const mediaH = Math.min(Math.round(cardW * ah / aw), 520);
+    el.style.width = cardW + 'px';
+    el.style.setProperty('--media-h', mediaH + 'px');
     el.innerHTML = `
-        <a class="corner" href="${loc.href || '#'}" aria-label="Open project">
-            <svg viewBox="0 0 24 24" fill="none"><path d="M7 17L17 7M17 7H9M17 7v8" stroke="#0a1422" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        </a>
-        <div class="media"><img src="${loc.img}" alt="${loc.name}" /></div>
-        <div class="head"><h3>${loc.name}</h3><span class="sub">${loc.sub || ''}</span></div>
-        <div class="more">
-            <p>${loc.desc || ''}</p>
-            <div class="tags">${(loc.tags || []).map(tg => `<span>${tg}</span>`).join('')}</div>
+        <div class="card-float">
+        <div class="card-3d">
+            <a class="corner" href="${loc.href || '#'}" aria-label="Open project">
+                <svg viewBox="0 0 24 24" fill="none"><path d="M7 17L17 7M17 7H9M17 7v8" stroke="#0a1422" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </a>
+            <div class="card-edge"></div>
+            <div class="media"><img src="${loc.img}" alt="${loc.name}" /></div>
+            <div class="panel">
+                <h3>${loc.name}</h3><span class="sub">${loc.sub || ''}</span>
+                <div class="more">
+                    <p>${loc.desc || ''}</p>
+                    <div class="tags">${(loc.tags || []).map(tg => `<span>${tg}</span>`).join('')}</div>
+                </div>
+            </div>
+        </div>
         </div>`;
     document.body.appendChild(el);
+    attachTilt(el);
+
+    // hover → cross-fade the still image into a looping video + themed controls
+    if (loc.video) {
+        const media = el.querySelector('.media');
+        const vid = document.createElement('video');
+        vid.src = loc.video;
+        vid.muted = true; vid.loop = true; vid.playsInline = true;
+        vid.preload = 'metadata';
+        media.appendChild(vid);
+
+        const ICONS = {
+            play:  '<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>',
+            pause: '<svg viewBox="0 0 24 24"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>',
+            muted: '<svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm18.5 3l-2.3-2.3-1.4 1.4 2.3 2.3-2.3 2.3 1.4 1.4 2.3-2.3 2.3 2.3 1.4-1.4-2.3-2.3 2.3-2.3-1.4-1.4-2.3 2.3z" transform="translate(-4 0)"/></svg>',
+            sound: '<svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.8-1-3.3-2.5-4v8c1.5-.7 2.5-2.2 2.5-4zM14 3.2v2.1c2.9.9 5 3.5 5 6.7s-2.1 5.8-5 6.7v2.1c4-.9 7-4.5 7-8.8s-3-7.9-7-8.8z"/></svg>',
+            expand:   '<svg viewBox="0 0 24 24"><path d="M4 4h6v2H6v4H4V4zm10 0h6v6h-2V6h-4V4zM4 14h2v4h4v2H4v-6zm14 0h2v6h-6v-2h4v-4z"/></svg>',
+            compress: '<svg viewBox="0 0 24 24"><path d="M10 4v6H4V8h4V4h2zm4 0h2v4h4v2h-6V4zM4 14h6v6H8v-4H4v-2zm10 0h6v2h-4v4h-2v-6z"/></svg>',
+        };
+        const fmt = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+
+        const ui = document.createElement('div');
+        ui.className = 'vid-ui';
+        ui.innerHTML = `
+            <button class="vu-play" aria-label="Play / pause">${ICONS.pause}</button>
+            <div class="vu-track"><div class="vu-fill"></div></div>
+            <span class="vu-time">0:00</span>
+            <button class="vu-mute" aria-label="Sound on / off">${ICONS.muted}</button>
+            <button class="vu-fs" aria-label="Fullscreen">${ICONS.expand}</button>`;
+        media.appendChild(ui);
+
+        const playBtn = ui.querySelector('.vu-play');
+        const sndBtn  = ui.querySelector('.vu-mute');
+        const track   = ui.querySelector('.vu-track');
+        const fill    = ui.querySelector('.vu-fill');
+        const time    = ui.querySelector('.vu-time');
+
+        playBtn.addEventListener('click', e => {
+            e.stopPropagation();
+            if (vid.paused) vid.play(); else vid.pause();
+            playBtn.innerHTML = vid.paused ? ICONS.play : ICONS.pause;
+        });
+        sndBtn.addEventListener('click', e => {
+            e.stopPropagation();
+            vid.muted = !vid.muted;
+            sndBtn.innerHTML = vid.muted ? ICONS.muted : ICONS.sound;
+        });
+        const fsBtn = ui.querySelector('.vu-fs');
+        fsBtn.addEventListener('click', e => {
+            e.stopPropagation();
+            if (document.fullscreenElement) document.exitFullscreen();
+            else media.requestFullscreen();
+        });
+        document.addEventListener('fullscreenchange', () => {
+            fsBtn.innerHTML = document.fullscreenElement === media ? ICONS.compress : ICONS.expand;
+        });
+        track.addEventListener('click', e => {
+            e.stopPropagation();
+            const r = track.getBoundingClientRect();
+            if (vid.duration) vid.currentTime = ((e.clientX - r.left) / r.width) * vid.duration;
+        });
+        vid.addEventListener('timeupdate', () => {
+            if (!vid.duration) return;
+            fill.style.width = (vid.currentTime / vid.duration * 100).toFixed(1) + '%';
+            time.textContent = fmt(vid.currentTime);
+        });
+
+        el.addEventListener('mouseenter', () => {
+            media.classList.add('playing');
+            vid.play().catch(() => {});
+            playBtn.innerHTML = ICONS.pause;
+        });
+        el.addEventListener('mouseleave', () => {
+            media.classList.remove('playing');
+            setTimeout(() => { if (!media.classList.contains('playing')) vid.pause(); }, 500);
+        });
+    }
+    // MASTER CARD RULE — every project card gets the hexagon "VIEW PROJECT"
+    // cursor on hover + click-through to its case-study page.
+    // video cards: hex shows while the video plays (controls bar excluded).
+    // non-video cards: hex shows on any hover, 3D tilt stays on.
+    el.addEventListener('mousemove', e => {
+        const overUi = e.target.closest('.vid-ui');
+        const playing = el.querySelector('.media.playing');
+        const active = !overUi && !document.fullscreenElement && (loc.video ? !!playing : true);
+        el.classList.toggle('hexing', active);
+        cursorHex.classList.toggle('show', active);
+        if (active) {
+            cursorHex.style.left = e.clientX + 'px';
+            cursorHex.style.top  = e.clientY + 'px';
+        }
+    });
+    el.addEventListener('mouseleave', () => {
+        el.classList.remove('hexing');
+        cursorHex.classList.remove('show');
+    });
+    el.addEventListener('click', e => {
+        if (e.target.closest('.vid-ui') || e.target.closest('.corner') || document.fullscreenElement) return;
+        if (loc.href && loc.href !== '#') window.open(loc.href, '_blank');
+    });
+
+    // hover → chromeless looping YouTube embed (kept for projects with yt id)
+    if (!loc.video && loc.yt) {
+        const media = el.querySelector('.media');
+        let leaveTimer;
+        el.addEventListener('mouseenter', () => {
+            clearTimeout(leaveTimer);
+            if (!media.querySelector('iframe')) {
+                const f = document.createElement('iframe');
+                f.src = `https://www.youtube-nocookie.com/embed/${loc.yt}`
+                    + `?autoplay=1&mute=1&controls=0&rel=0&playsinline=1`
+                    + `&loop=1&playlist=${loc.yt}&iv_load_policy=3&disablekb=1&fs=0`;
+                f.allow = 'autoplay; encrypted-media';
+                media.appendChild(f);
+            }
+            media.classList.add('playing');
+        });
+        el.addEventListener('mouseleave', () => {
+            media.classList.remove('playing');
+            leaveTimer = setTimeout(() => {
+                const f = media.querySelector('iframe');
+                if (f) f.remove();
+            }, 600);
+        });
+    }
     return el;
 }
+
+const cursorHex = document.getElementById('cursorHex');
 
 const markers = [];
 LOCATIONS.forEach((loc, idx) => {
     const p = trailCurve.getPointAt(loc.t);
-    const HEX_Y = 11;
+    const STEM_H = 11;
 
+    // thin white flagpole
     const stem = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.07, 0.07, HEX_Y, 5),
-        new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.55 })
+        new THREE.CylinderGeometry(0.06, 0.06, STEM_H, 4),
+        new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.7 })
     );
-    stem.position.set(p.x, p.y + HEX_Y / 2, p.z);
+    stem.position.set(p.x, p.y + STEM_H / 2, p.z);
     scene.add(stem);
 
-    // hexagon as a spinning coin — flat face toward the viewer
-    const hexGeo = new THREE.CylinderGeometry(1.7, 1.7, 0.6, 6);
-    hexGeo.rotateX(Math.PI / 2);
-    const hex = new THREE.Mesh(hexGeo, new THREE.MeshBasicMaterial({ color: 0xfacc15 }));
-    hex.position.set(p.x, p.y + HEX_Y, p.z);
-    scene.add(hex);
+    // waving yellow flag (procedural sine-wave vertex shader)
+    const flagMat = new THREE.ShaderMaterial({
+        uniforms: { uTime: { value: 0 } },
+        vertexShader: `
+            uniform float uTime;
+            void main() {
+                vec3 pos = position;
+                float amt = (pos.x / 3.4 + 0.5);           // 0 at pole, 1 at free edge
+                float wave = sin(pos.x * 2.4 + uTime * 3.6) * amt * 0.38;
+                pos.y += wave;
+                pos.z += sin(pos.x * 1.7 + uTime * 2.9) * amt * 0.22;
+                gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
+            }`,
+        fragmentShader: 'void main() { gl_FragColor = vec4(0.980, 0.800, 0.082, 1.0); }',
+        side: THREE.DoubleSide,
+    });
+    const flag = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 2.1, 12, 6), flagMat);
+    flag.position.set(p.x + 1.7, p.y + STEM_H - 1.0, p.z);
+    scene.add(flag);
 
+    // pulsing waypoint dot on the trail (Waze-alert style): center dot + 2 expanding rings
+    const dot = new THREE.Mesh(
+        new THREE.CircleGeometry(0.85, 20),
+        new THREE.MeshBasicMaterial({ color: 0xfacc15, side: THREE.DoubleSide })
+    );
+    dot.rotation.x = -Math.PI / 2;
+    dot.position.set(p.x, p.y + 0.3, p.z);
+    dot.renderOrder = 4;
+    scene.add(dot);
+
+    const ringMat1 = new THREE.MeshBasicMaterial({ color: 0xfacc15, transparent: true, opacity: 0.9, side: THREE.DoubleSide, depthWrite: false });
+    const ringMat2 = ringMat1.clone();
+    const ring1 = new THREE.Mesh(new THREE.RingGeometry(0.45, 0.625, 28), ringMat1);
+    const ring2 = new THREE.Mesh(new THREE.RingGeometry(0.45, 0.625, 28), ringMat2);
+    [ring1, ring2].forEach(r => {
+        r.rotation.x = -Math.PI / 2;
+        r.position.set(p.x, p.y + 0.28, p.z);
+        r.renderOrder = 3;
+        scene.add(r);
+    });
+
+    // sizeAttenuation:false → constant on-screen size, stays small and crisp
+    // no matter how close the camera gets (scale is in screen-space units)
     const num = new THREE.Sprite(new THREE.SpriteMaterial({
         map: labelTex('0' + (idx + 1)), transparent: true, depthTest: false,
     }));
     num.renderOrder = 5;
     num.scale.set(4.4, 2.2, 1);
-    num.position.set(p.x, p.y + HEX_Y + 3.2, p.z);
+    num.position.set(p.x, p.y + STEM_H + 3.2, p.z);
     scene.add(num);
 
+    // city-name style label
     const name = new THREE.Sprite(new THREE.SpriteMaterial({
         map: nameTex(loc.name), transparent: true, depthTest: false, opacity: 0.95,
     }));
     name.renderOrder = 5;
-    name.scale.set(11.5, 1.8, 1);
-    name.position.set(p.x, p.y + HEX_Y + 5.2, p.z);
+    name.scale.set(13.5, 1.8, 1);
+    name.position.set(p.x, p.y + STEM_H + 5.2, p.z);
     scene.add(name);
 
     const sprite = new THREE.Sprite(new THREE.SpriteMaterial({
@@ -497,13 +869,13 @@ LOCATIONS.forEach((loc, idx) => {
         blending: THREE.AdditiveBlending, depthWrite: false,
     }));
     sprite.scale.set(9, 9, 1);
-    sprite.position.copy(hex.position);
+    sprite.position.set(p.x, p.y + STEM_H - 1.0, p.z);
     scene.add(sprite);
 
     markers.push({
-        hex, sprite, num, name, loc, idx,
+        flag, flagMat, ring1, ring2, ringMat1, ringMat2, sprite, num, name, loc, idx,
         t: loc.t,
-        world: hex.position.clone(),
+        world: new THREE.Vector3(p.x, p.y + STEM_H, p.z),
         card: loc.card ? buildCard(loc) : null,
     });
 });
@@ -574,6 +946,11 @@ function updateCamera(dt) {
     camPos.copy(p).addScaledVector(back, 38);
     camPos.y = Math.max(p.y, terrainHeight(camPos.x, camPos.z)) + 24 + heightOffset;
     camTarget.copy(ahead).setY(ahead.y + 2);
+    // composition shift: push lookAt right → trail sits LEFT of screen center,
+    // freeing the right side for big project cards
+    const fwd = ahead.clone().sub(p).setY(0).normalize();
+    const compRight = new THREE.Vector3().crossVectors(fwd, UP).normalize();
+    camTarget.addScaledVector(compRight, 26);
 
     const k = 1 - Math.pow(0.001, dt);
     smoothPos.lerp(camPos, k);
@@ -609,39 +986,33 @@ function updateCamera(dt) {
         projV.project(camera);
         const behind = projV.z > 1;
 
-        // approaching → full; passed → fade down to 20% and stay navigable
-        // (position freezes once the waypoint slips behind the camera);
-        // far past → gone
+        // approaching → full; passed → fade fully out (no lingering ghost card)
         let vis = 0;
-        if (delta > -0.075 && delta < 0.22) {
-            vis = delta <= 0.02 ? 1 : Math.max(0.2, 1 - ((delta - 0.02) / 0.05) * 0.8);
-            if (behind && m.card._cx === undefined) vis = 0; // never appeared → nothing to freeze
+        if (delta > -0.035 && delta < 0.09) {
+            vis = delta <= 0.02 ? 1 : Math.max(0, 1 - (delta - 0.02) / 0.07);
         }
         const on = vis > 0;
         m.card.classList.toggle('on', on);
-        m.name.material.opacity = on ? 0 : 0.95;
         if (!on) { m.card._cx = undefined; m.card.style.opacity = ''; return; }
         m.card.style.opacity = vis;
 
         if (!behind) {
             const sx = (projV.x * 0.5 + 0.5) * innerWidth;
             const sy = (-projV.y * 0.5 + 0.5) * innerHeight;
-            const W = 392;
-            const left = m.loc.side === 'left';
-            const tx = left
-                ? Math.min(Math.max(sx - W - 80, 20), innerWidth - W - 20)
-                : Math.min(Math.max(sx + 80, 20), innerWidth - W - 20);
-            // left column is the title's safe zone — left cards open below it
-            const minY = left ? 330 : 90;
-            const ty = Math.min(Math.max(sy - 240, minY), innerHeight - 520);
+            const W = m.card.offsetWidth || 560;
+            // cards center inside the right-side content zone — any card size
+            // (wide or tall) lands in the middle of the same area
+            const zoneL = innerWidth * 0.44, zoneR = innerWidth - 60;
+            const zoneT = 90, zoneB = innerHeight - 90;
+            const cardH = m.card.offsetHeight || 460;
+            const tx = zoneL + (zoneR - zoneL - W) / 2;
+            const ty = Math.max(zoneT, zoneT + (zoneB - zoneT - cardH) / 2);
 
             if (m.card._cx === undefined) { m.card._cx = tx; m.card._cy = ty; }
-            const ck = 1 - Math.pow(0.0005, dt);
+            const ck = 1 - Math.pow(0.02, dt);
             m.card._cx += (tx - m.card._cx) * ck;
             m.card._cy += (ty - m.card._cy) * ck;
         }
-        // hard safe-zone: nothing may sit behind the title block (top-left)
-        if (m.card._cx < 480 && m.card._cy < 330) m.card._cy = 330;
         m.card.style.left = m.card._cx + 'px';
         m.card.style.top = m.card._cy + 'px';
     });
@@ -652,9 +1023,17 @@ const clock = new THREE.Clock();
 function frame() {
     const dt = Math.min(clock.getDelta(), 0.05);
     const el = clock.elapsedTime;
-    markers.forEach(({ hex, sprite }, i) => {
-        hex.rotation.y = el * 0.6 + i;
-        sprite.material.opacity = 0.6 + Math.sin(el * 2 + i * 1.3) * 0.18;
+    markers.forEach(({ flagMat, ring1, ring2, ringMat1, ringMat2, sprite }, i) => {
+        flagMat.uniforms.uTime.value = el + i * 1.7;
+        // two rings expand+fade, offset half a cycle — continuous gentle pulse
+        const DUR = 1.9;
+        const t1 = ((el + i * 0.43) % DUR) / DUR;
+        const t2 = ((el + i * 0.43 + DUR / 2) % DUR) / DUR;
+        ring1.scale.setScalar(1 + t1 * 2.6);
+        ringMat1.opacity = (1 - t1) * 0.8;
+        ring2.scale.setScalar(1 + t2 * 2.6);
+        ringMat2.opacity = (1 - t2) * 0.8;
+        sprite.material.opacity = 0.5 + Math.sin(el * 2 + i * 1.3) * 0.15;
     });
     clouds.forEach(c => {
         c.position.x += c.userData.speed * dt * 2.4;
@@ -671,6 +1050,52 @@ addEventListener('resize', () => {
     camera.updateProjectionMatrix();
     renderer.setSize(innerWidth, innerHeight);
 });
+
+/* ---------------- staged HUD intro ----------------
+   badge pop → kicker slide → title letters cascade → paragraph
+   types itself out like a chat message */
+(() => {
+    const badge  = document.querySelector('.title-badge');
+    const kicker = document.querySelector('.hud-title .kicker');
+    const h1     = document.querySelector('.hud-title h1');
+    const para   = document.querySelector('.hud-title p');
+
+    // split the h1 into per-character spans (words kept unbreakable)
+    const words = h1.textContent.split(' ');
+    h1.textContent = '';
+    const chars = [];
+    words.forEach((w, wi) => {
+        const wrap = document.createElement('span');
+        wrap.style.display = 'inline-block';
+        wrap.style.whiteSpace = 'nowrap';
+        [...w].forEach(c => {
+            const s = document.createElement('span');
+            s.className = 'ch'; s.textContent = c;
+            wrap.appendChild(s); chars.push(s);
+        });
+        h1.appendChild(wrap);
+        if (wi < words.length - 1) h1.appendChild(document.createTextNode(' '));
+    });
+
+    const paraText = para.textContent;
+    para.textContent = '';
+
+    setTimeout(() => badge.classList.add('in'), 150);
+    setTimeout(() => kicker.classList.add('in'), 520);
+    chars.forEach((s, i) => setTimeout(() => s.classList.add('in'), 760 + i * 34));
+
+    const typeStart = 760 + chars.length * 34 + 250;
+    setTimeout(() => {
+        para.classList.add('typing');
+        let i = 0;
+        const tick = () => {
+            para.textContent = paraText.slice(0, ++i);
+            if (i < paraText.length) setTimeout(tick, 13);
+            else para.classList.remove('typing');
+        };
+        tick();
+    }, typeStart);
+})();
 </script>
 </body>
 </html>

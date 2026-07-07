@@ -209,15 +209,108 @@ function attachTilt(card) {
 ```
 Call `attachTilt(el)` at the end of `buildCard()` before `return el`.
 
-#### PRIORITY 2 — Bird's-eye intro (Phase 3)
+#### PRIORITY 1b — Card size + thumbnails (do alongside tilt)
+- Card width: 392 → 470px. Default image aspect: **16:9** (`height = width * 9/16 = 264px`). Exception: Baboon of Jafa → **9:16 vertical** (add `aspect:'9:16'` field to LOCATIONS entry).
+- Fix thumbnails: change `const IMG = '/projects/'` → `'/projects/thumbs/'` AND restore full original filenames (they exist in `frontend/public/projects/thumbs/` with original Magnific names). Also copy thumbs folder to `frontend/public/projects/thumbs/` if not already there.
+- Per-card aspect in LOCATIONS: add `aspect: '16:9'` (default) or `'9:16'` (vertical). `buildCard()` reads it and sets `.media` height accordingly.
+
+#### PRIORITY 1c — Camera shift (trail left, cards right)
+- Trail should sit on the **RIGHT** side of screen (under main titles area). Cards appear on the **LEFT** with more room.
+- Implementation: offset `lookAt` target perpendicular-left to tangent direction. In `updateCamera`, compute `right = tangent × [0,1,0]` (normalized), then `lookAtTarget = point + tangent*5 - right * LATERAL_OFFSET` where `LATERAL_OFFSET ≈ 30–50` (tune visually). Camera stays on trail but view shifts trail rightward.
+- Card safe-zone update accordingly (left cards get more horizontal space).
+
+#### PRIORITY 1d — Card timing fix
+- Card appears too early. Change `delta > -0.075` → `delta > -0.035` in the visibility block. Card fades in just before the yellow waypoint.
+
+#### PRIORITY 1e — Waypoint marker redesign
+**Replace spinning hex with:**
+1. **Pulsing dot** on the trail point itself: `RingGeometry` + `MeshBasicMaterial`, scale grows 1→3 + opacity 1→0 in loop (~1.8s). Stack 2 rings with 0.9s offset for continuous pulse (Waze alert style).
+2. **Waving flag** above dot (replaces hex+stem): procedural Three.js — `PlaneGeometry(3,2,8,6)` + vertex shader sine wave:
+```glsl
+// vertex shader snippet
+float wave = sin(position.x * 2.5 + uTime * 3.0) * (position.x / 3.0) * 0.4;
+newPos.y += wave;
+newPos.z += wave * 0.3;
+```
+Flag material: `MeshBasicMaterial({ color: 0xfacc15, side: THREE.DoubleSide })`. Thin white flagpole: `CylinderGeometry(0.05,0.05,stemH,4)`.
+
+#### PRIORITY 1f — Altitude label
+Add `alt` field to each LOCATIONS entry (realistic MTB altitude in meters, e.g. 1240). Name sprite renders `"Bone Bash · 1240m"` — same `nameTex()` function, just append ` · ${loc.alt}m` to the string.
+
+#### PRIORITY 2 — Project modal (click on card)
+**Trigger:** click anywhere on `.proj-card` (not the corner ↗ link — that goes to project page).
+**Animation:** shared-element expand — card's bounding rect → near-fullscreen overlay (300ms ease-out `transform: scale()`). Overlay: `position:fixed; inset:20px; z-index:100; background:rgba(4,8,15,0.96); backdrop-filter:blur(20px); border:1px solid rgba(250,204,21,0.25)`.
+**Content inside modal:**
+- If `loc.video` exists → VideoPlayer component (see below). Else → large `<img>`.
+- Project title (Unbounded 28px), subtitle, full description, tags.
+- `×` close button top-right (44×44px touch target). Escape key closes.
+- Optional: additional images grid below (add `loc.gallery: ['img1.jpg','img2.jpg']` to LOCATIONS).
+
+#### PRIORITY 2b — VideoPlayer component
+Used inside modal. Spec:
+- Border: `1px solid rgba(250,204,21,0.35)`
+- Controls bar: `rgba(4,8,15,0.82)` + `backdrop-filter:blur(12px)`, white SVG icons
+- Progress bar: yellow `#facc15` played / `rgba(255,255,255,0.3)` buffered / dark track
+- Controls: ▶/⏸ · timestamp · volume slider (yellow accent) · fullscreen · share
+- Share: `navigator.clipboard.writeText(loc.href)` → toast "Link copied ✓" (3s auto-dismiss)
+- Keyboard: `Space`=play/pause, `←/→`=±5s seek, `M`=mute, `F`=fullscreen, `Esc`=close modal
+- LOCATIONS field: `video: '/vids/project-name.mp4'` (served from `frontend/public/vids/`)
+- Video hosting: **Vercel `frontend/public/vids/`** — 96.7 GB free bandwidth remaining on Hobby plan, no external service needed for portfolio-scale traffic.
+
+#### PRIORITY 3 — Bird's-eye intro (Phase 3)
 Camera starts high above terrain (~y=180, far back z), scrolling t=0→0.05 triggers dive through polygon clouds, lands on trail at t=0.05. Separate lerp target for intro phase; transition to normal trail-follow after.
 
-#### PRIORITY 3 — Playwright verify
-Full feature set: trail color/sharpness, coin hex, name labels, card hover reveal (desc+tags), card safe zone, fade-to-20% behavior, free-look controls, 3D tilt.
+#### PRIORITY 4 — Playwright verify
+Full feature set: thumbnails, trail, flag+pulse, name+altitude labels, card timing, card aspect ratios, 3D tilt, modal open/close, video player, camera offset.
 
-#### PRIORITY 4 — Remaining projects + React
-- Add 3 more to LOCATIONS: Ten Li Rock'n'Roll (`docs/reference-previews/projects/23383.png`), Paymax (`23380`), Beit Ha'Gefen (needs real image from user).
+#### PRIORITY 5 — Remaining projects + React
+- Add 3 more to LOCATIONS: Ten Li Rock'n'Roll (`thumbs/magnific__digital...23383.jpg`), Paymax (`thumbs/magnific__photo...23380.jpg`), Beit Ha'Gefen (needs real image from user).
 - After approval → React integration into `PortfolioV2.jsx` (Three.js canvas + `useEffect`/`window.scrollY` scroll sync).
+
+## Session 2026-07-08 — MASTER CARD COMPONENT (approved rules, implemented in webgl-gallery-v2.html)
+
+Two variants of one master card, driven per-project by the LOCATIONS entry:
+- **Horizontal** (default, `aspect:'16:9'`): card 660px wide, media height by aspect.
+- **Mobile/vertical** (`aspect:'9:16'`, e.g. Baboon): card 380px wide, media up to 620px tall.
+
+Shared rules (ALL cards):
+- Image full-bleed on top; text strip flows BELOW image — black rgba(0,0,0,0.3) + backdrop-blur(10px), site 3D map visible through it. Hover expands `.more` (desc+tags) inside same strip.
+- Corner triangle top-left: 26px, decorative, NO arrow.
+- Edge glow `.card-edge`: yellow→cyan radial border glow follows cursor (3px thick), on hover.
+- Hexagon cursor `#cursorHex`: regular hexagon 90×104 (pointy top/bottom), yellow, navy "VIEW PROJECT" + ↗ 18px below text; replaces system cursor; click opens `loc.href` (case-study page) in new tab. Excluded over `.vid-ui` and `.corner`.
+- Idle float: translateY ±9px, 6s ease-in-out loop (`.card-float`).
+- Cards center in right-side zone: x from 44% viewport to −60px, y 64px..−60px, centered by actual card height, lerped smooth.
+- Card visible window: delta −0.035..+0.09, fades fully out after pass (no ghost).
+
+Video cards (`video:` field, currently Baboon + Bone Bash):
+- Hover: still image cross-fades (0.45s) into muted looping `<video>`; leave → fade back + pause.
+- Themed controls bar `.vid-ui`: dark blur strip, white icons (hover=yellow), yellow glow progress (click-to-seek, thickens on hover), timestamp, YouTube-style mute/unmute speaker icon with 46×40 hit zone.
+- 3D tilt DISABLED while playing (buttons stay under cursor); edge glow still tracks.
+- Hex cursor only while playing.
+- Videos live in `frontend/public/projects/<Name>/` — Baboon: `Baboon/Baboon_for_topaz_dancer_GPT_settings04.mp4`, BoneBash: `BoneBash/binebash_sora_clean.mp4`. Paths in LOCATIONS are root-server-relative (`frontend/public/...`); switch to `/projects/...` at React port.
+
+Non-video cards:
+- 3D tilt ACTIVE (rotY dx*30 / rotX dy*22, perspective 750, image objectPosition pan, title parallax, drop-shadow) + hex cursor on hover.
+- YouTube `yt:` fallback path exists in code (chromeless embed, 140% crop) — unused currently, embed was blocked for Bone Bash.
+
+HUD (this session): kicker white, H1 yellow Sora 800, paragraph Sora 300 18px; staged intro — badge pop (chamfered, stroked flag+trail SVG) → kicker → per-letter H1 cascade → paragraph typewriter w/ yellow caret. Waypoint labels: hi-res canvas textures, world-scale sprites (sizeAttenuation revert), altitude text removed, always visible. Pulse rings halved (r=0.45). OPEN: user reported "scroll feels inverted" — clarify before flipping direction.
+
+### Hexagon "VIEW PROJECT" cursor (added this session)
+`#cursorHex` — regular hexagon 90×104 (pointy top/bottom), yellow fill, navy "VIEW PROJECT" text + 18px ↗ arrow below. Replaces system cursor (`.proj-card.hexing { cursor:none }`) while active; follows mouse via `mousemove` → `cursorHex.style.left/top`. Active whenever hovering a card AND (non-video card, always) OR (video card AND video is playing) AND not over `.vid-ui` AND not fullscreen. Click on card body (excluding `.vid-ui`/`.corner`) → `window.open(loc.href, '_blank')` — `loc.href` still needs real case-study URLs per project.
+
+### Video card polish (added this session)
+- Fullscreen button (⛶/⛶-compress icons) in `.vid-ui`, right of mute — `media.requestFullscreen()` / `exitFullscreen()`. CSS `:fullscreen` rule: video `object-fit:contain`, still image hidden, black backdrop. Hex cursor + card click disabled while fullscreen.
+- Compressed source videos via ffmpeg (H.264, CRF24, preset slow, AAC 96k, `+faststart`): `Baboon_for_topaz_dancer_GPT_settings04.mp4` 121MB→`baboon_web.mp4` 7.2MB (630×1080); `binebash_sora_clean.mp4` 67MB→`bonebash_web.mp4` 24MB (native 1920×1056). LOCATIONS `video:` fields point to the `_web.mp4` versions. Originals stay local only — added to root `.gitignore` (over Vercel's 100MB/file limit, no reason to bloat git history).
+- Vertical card (Baboon, 9:16) size reduced 380→330px, media cap 620→520px — was touching viewport edges. Card zone vertical padding increased 64/innerHeight-60 → 90/innerHeight-90 on both axes.
+
+### Vercel path fixes (this session — REQUIRED before every future sync)
+Root `webgl-gallery-v2.html` uses local-server-relative paths for iteration (`frontend/public/projects/...`, `docs/portfolio-redesign/reference-previews/projects/...` for thumbs) — these do NOT resolve on Vercel. The copy at `frontend/public/webgl-gallery-v2.html` (the one Vercel actually serves) must have:
+- `video:`/img paths rewritten `frontend/public/projects/` → `/projects/`
+- `const IMG` rewritten to `/projects/thumbs/`
+Do this rewrite (not a byte-identical copy) every time before pushing. Sync command used this session:
+```
+sed -e "s|frontend/public/projects/|/projects/|g" -e "s|docs/portfolio-redesign/reference-previews/projects/|/projects/thumbs/|" webgl-gallery-v2.html > frontend/public/webgl-gallery-v2.html
+```
 
 ## To resume in a new session
 Paste: "Read `C:\Ai\Mtb_portfolio\docs\portfolio-redesign\SESSION-HANDOFF.md`, then continue from the LAST session section's 'Immediate next step'." Also worth loading `/caveman` mode again if it doesn't persist automatically.
