@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>RIDGE — WebGL Terrain Prototype 01</title>
+<style>
+    :root {
+        --ink: #0e1a2b;
+        --ink-deep: #060b13;
+        --brand: #facc15;
+        --chamfer: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 12px 100%, 0 calc(100% - 12px));
+    }
+    * { box-sizing: border-box; margin: 0; }
+    html, body { background: var(--ink-deep); }
+    body { height: 700vh; font-family: "Manrope", system-ui, sans-serif; }
+    #scene { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+
+    .hud { position: fixed; z-index: 10; color: #e6edf5; pointer-events: none; }
+    .hud-title { top: 28px; left: 32px; }
+    .hud-title .kicker {
+        font-size: 11px; letter-spacing: 0.32em; text-transform: uppercase;
+        color: var(--brand); font-weight: 700;
+    }
+    .hud-title h1 {
+        font-family: "Unbounded", sans-serif; font-size: 22px; font-weight: 900;
+        letter-spacing: -0.02em; margin-top: 6px;
+    }
+    .hud-hint {
+        bottom: 30px; left: 50%; transform: translateX(-50%);
+        font-size: 11px; letter-spacing: 0.28em; text-transform: uppercase; color: rgba(230,237,245,0.55);
+        animation: hint-pulse 2.4s ease-in-out infinite;
+    }
+    @keyframes hint-pulse { 0%,100% { opacity: 0.45; } 50% { opacity: 1; } }
+
+    /* compass */
+    .compass {
+        position: fixed; right: 30px; bottom: 30px; z-index: 10;
+        width: 92px; height: 92px; pointer-events: none;
+    }
+    .compass svg { width: 100%; height: 100%; }
+    .compass .rose { transform-origin: 50% 50%; transition: none; }
+    .compass-readout {
+        position: fixed; right: 30px; bottom: 128px; z-index: 10;
+        font-size: 10px; letter-spacing: 0.24em; color: rgba(250,204,21,0.85);
+        text-transform: uppercase; text-align: center; width: 92px;
+        font-variant-numeric: tabular-nums;
+    }
+
+    /* progress rail */
+    .rail {
+        position: fixed; left: 32px; top: 50%; transform: translateY(-50%);
+        z-index: 10; width: 2px; height: 220px; background: rgba(255,255,255,0.12);
+    }
+    .rail-fill { width: 100%; height: 0%; background: var(--brand); box-shadow: 0 0 10px rgba(250,204,21,0.7); }
+
+    @import url('https://fonts.googleapis.com/css2?family=Unbounded:wght@700;900&family=Manrope:wght@500;700&display=swap');
+</style>
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@700;900&family=Manrope:wght@500;700&display=swap" rel="stylesheet" />
+</head>
+<body>
+<canvas id="scene"></canvas>
+
+<div class="hud hud-title">
+    <div class="kicker">Prototype 01 · WebGL Terrain</div>
+    <h1>PROJECT RIDGE</h1>
+</div>
+<div class="hud hud-hint">Scroll to ride the trail</div>
+
+<div class="rail"><div class="rail-fill" id="railFill"></div></div>
+
+<div class="compass-readout" id="compassReadout">000°</div>
+<div class="compass">
+    <svg viewBox="0 0 100 100">
+        <circle cx="50" cy="50" r="46" fill="rgba(6,11,19,0.72)" stroke="rgba(250,204,21,0.35)" stroke-width="1.5"/>
+        <circle cx="50" cy="50" r="38" fill="none" stroke="rgba(255,255,255,0.10)" stroke-width="1"/>
+        <g class="rose" id="compassRose">
+            <polygon points="50,14 54,50 50,58 46,50" fill="#facc15"/>
+            <polygon points="50,86 54,50 50,42 46,50" fill="rgba(230,237,245,0.35)"/>
+            <text x="50" y="11" text-anchor="middle" font-size="9" fill="#facc15" font-family="Manrope" font-weight="700">N</text>
+        </g>
+        <circle cx="50" cy="50" r="3" fill="#facc15"/>
+    </svg>
+</div>
+
+<script type="importmap">
+{ "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js" } }
+</script>
+<script type="module">
+import * as THREE from 'three';
+
+/* ---------------- simplex noise (2D, Gustavson port, compact) ---------------- */
+const F2 = 0.5 * (Math.sqrt(3) - 1), G2 = (3 - Math.sqrt(3)) / 6;
+const grad2 = [[1,1],[-1,1],[1,-1],[-1,-1],[1,0],[-1,0],[0,1],[0,-1]];
+const perm = new Uint8Array(512);
+(() => {
+    const p = new Uint8Array(256);
+    for (let i = 0; i < 256; i++) p[i] = i;
+    let seed = 1337;
+    const rand = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+    for (let i = 255; i > 0; i--) {
+        const j = Math.floor(rand() * (i + 1));
+        [p[i], p[j]] = [p[j], p[i]];
+    }
+    for (let i = 0; i < 512; i++) perm[i] = p[i & 255];
+})();
+function snoise(x, y) {
+    let n0 = 0, n1 = 0, n2 = 0;
+    const s = (x + y) * F2, i = Math.floor(x + s), j = Math.floor(y + s);
+    const t = (i + j) * G2, x0 = x - (i - t), y0 = y - (j - t);
+    const i1 = x0 > y0 ? 1 : 0, j1 = x0 > y0 ? 0 : 1;
+    const x1 = x0 - i1 + G2, y1 = y0 - j1 + G2;
+    const x2 = x0 - 1 + 2 * G2, y2 = y0 - 1 + 2 * G2;
+    const ii = i & 255, jj = j & 255;
+    let t0 = 0.5 - x0*x0 - y0*y0;
+    if (t0 >= 0) { const g = grad2[perm[ii + perm[jj]] % 8]; t0 *= t0; n0 = t0 * t0 * (g[0]*x0 + g[1]*y0); }
+    let t1 = 0.5 - x1*x1 - y1*y1;
+    if (t1 >= 0) { const g = grad2[perm[ii + i1 + perm[jj + j1]] % 8]; t1 *= t1; n1 = t1 * t1 * (g[0]*x1 + g[1]*y1); }
+    let t2 = 0.5 - x2*x2 - y2*y2;
+    if (t2 >= 0) { const g = grad2[perm[ii + 1 + perm[jj + 1]] % 8]; t2 *= t2; n2 = t2 * t2 * (g[0]*x2 + g[1]*y2); }
+    return 70 * (n0 + n1 + n2);
+}
+function fbm(x, y) {
+    let v = 0, a = 0.5, f = 1;
+    for (let o = 0; o < 5; o++) { v += a * snoise(x * f, y * f); a *= 0.5; f *= 2.05; }
+    return v;
+}
+function ridged(x, y) {
+    let v = 0, a = 0.55, f = 1;
+    for (let o = 0; o < 4; o++) { v += a * (1 - Math.abs(snoise(x * f, y * f))); a *= 0.5; f *= 2.1; }
+    return v;
+}
+
+/* ---------------- trail route (XZ zigzag waypoints) ---------------- */
+const WAYPOINTS = [
+    [-40, 300], [70, 210], [-90, 150], [55, 80], [-70, 0],
+    [90, -70], [-50, -140], [80, -220], [-30, -300]
+];
+function distToRoute(x, z) {
+    let d = Infinity;
+    for (let i = 0; i < WAYPOINTS.length - 1; i++) {
+        const [ax, az] = WAYPOINTS[i], [bx, bz] = WAYPOINTS[i + 1];
+        const dx = bx - ax, dz = bz - az;
+        const t = Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / (dx*dx + dz*dz)));
+        const px = ax + t * dx, pz = az + t * dz;
+        d = Math.min(d, Math.hypot(x - px, z - pz));
+    }
+    return d;
+}
+
+/* ---------------- height function: ridged mountains, carved trail corridor -- */
+const H_SCALE = 78;
+function terrainHeight(x, z) {
+    const nx = x * 0.0052, nz = z * 0.0052;
+    let h = ridged(nx, nz) * 0.78 + fbm(nx * 2.4, nz * 2.4) * 0.22;
+    h = Math.pow(Math.max(0, h), 1.6) * H_SCALE;
+    // carve corridor along the route so camera rides a valley
+    const d = distToRoute(x, z);
+    const corridor = Math.min(1, d / 34);
+    const ease = corridor * corridor * (3 - 2 * corridor); // smoothstep
+    return h * (0.22 + 0.78 * ease);
+}
+
+/* ---------------- renderer / scene ---------------- */
+const canvas = document.getElementById('scene');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x060b13);
+scene.fog = new THREE.FogExp2(0x060b13, 0.0019);
+
+const camera = new THREE.PerspectiveCamera(58, innerWidth / innerHeight, 0.5, 1200);
+
+/* ---------------- terrain mesh + contour shader ---------------- */
+const SIZE = 760, SEG = 240;
+const geo = new THREE.PlaneGeometry(SIZE, SIZE, SEG, SEG);
+geo.rotateX(-Math.PI / 2);
+const pos = geo.attributes.position;
+for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i), z = pos.getZ(i);
+    pos.setY(i, terrainHeight(x, z));
+}
+geo.computeVertexNormals();
+
+const terrainMat = new THREE.ShaderMaterial({
+    fog: true,
+    uniforms: THREE.UniformsUtils.merge([
+        THREE.UniformsLib.fog,
+        {
+            uBase:  { value: new THREE.Color(0x2c4c72) },
+            uDeep:  { value: new THREE.Color(0x122236) },
+            uGold:  { value: new THREE.Color(0xfacc15) },
+            uLight: { value: new THREE.Vector3(0.5, 0.8, 0.3).normalize() },
+        }
+    ]),
+    vertexShader: `
+        varying float vH;
+        varying vec3 vNorm;
+        #include <fog_pars_vertex>
+        void main() {
+            vH = position.y;
+            vNorm = normalize(normalMatrix * normal);
+            vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+            gl_Position = projectionMatrix * mvPosition;
+            #include <fog_vertex>
+        }
+    `,
+    fragmentShader: `
+        varying float vH;
+        varying vec3 vNorm;
+        uniform vec3 uBase, uDeep, uGold, uLight;
+        #include <fog_pars_fragment>
+        void main() {
+            // slope shading
+            float lambert = clamp(dot(normalize(vNorm), uLight), 0.0, 1.0);
+            float hMix = clamp(vH / 78.0, 0.0, 1.0);
+            vec3 col = mix(uDeep, uBase, 0.30 + 0.70 * hMix);
+            col *= 0.95 + 0.55 * lambert;
+
+            // topographic contour lines
+            float freq = 0.17;
+            float f = fract(vH * freq);
+            float w = fwidth(vH * freq);
+            float line = 1.0 - smoothstep(w * 1.2, w * 2.6, min(f, 1.0 - f));
+            float intensity = 0.10 + 0.55 * hMix;         // brighter lines up high
+            col = mix(col, uGold, line * intensity);
+
+            // faint gold sheen on the highest ridges
+            col += uGold * smoothstep(0.78, 1.0, hMix) * 0.08;
+
+            gl_FragColor = vec4(col, 1.0);
+            #include <fog_fragment>
+        }
+    `,
+});
+scene.add(new THREE.Mesh(geo, terrainMat));
+
+/* ---------------- trail: rounded-corner zigzag on the terrain -------------- */
+function routeCurve() {
+    const pts3 = WAYPOINTS.map(([x, z]) => new THREE.Vector3(x, terrainHeight(x, z) + 0.9, z));
+    const path = new THREE.CurvePath();
+    const R = 14; // corner radius
+    let prevEnd = pts3[0];
+    for (let i = 1; i < pts3.length - 1; i++) {
+        const a = prevEnd, b = pts3[i], c = pts3[i + 1];
+        const inDir = b.clone().sub(a).normalize();
+        const outDir = c.clone().sub(b).normalize();
+        const cornerIn = b.clone().sub(inDir.clone().multiplyScalar(R));
+        const cornerOut = b.clone().add(outDir.clone().multiplyScalar(R));
+        path.add(new THREE.LineCurve3(a, cornerIn));
+        path.add(new THREE.QuadraticBezierCurve3(cornerIn, b, cornerOut));
+        prevEnd = cornerOut;
+    }
+    path.add(new THREE.LineCurve3(prevEnd, pts3[pts3.length - 1]));
+    return path;
+}
+const route = routeCurve();
+
+// re-sample onto terrain so the tube hugs the ground
+const SAMPLES = 600;
+const trailPts = [];
+for (let i = 0; i <= SAMPLES; i++) {
+    const p = route.getPointAt(i / SAMPLES);
+    p.y = terrainHeight(p.x, p.z) + 0.9;
+    trailPts.push(p);
+}
+const trailCurve = new THREE.CatmullRomCurve3(trailPts);
+trailCurve.curveType = 'centripetal';
+
+const tubeGeo = new THREE.TubeGeometry(trailCurve, 900, 0.55, 6, false);
+const tubeMat = new THREE.MeshBasicMaterial({ color: 0xfacc15 });
+scene.add(new THREE.Mesh(tubeGeo, tubeMat));
+
+// soft glow duplicate
+const glowGeo = new THREE.TubeGeometry(trailCurve, 900, 1.7, 6, false);
+const glowMat = new THREE.MeshBasicMaterial({
+    color: 0xfacc15, transparent: true, opacity: 0.14,
+    blending: THREE.AdditiveBlending, depthWrite: false,
+});
+scene.add(new THREE.Mesh(glowGeo, glowMat));
+
+/* ---------------- project waypoint markers ---------------- */
+const glowTex = (() => {
+    const c = document.createElement('canvas'); c.width = c.height = 128;
+    const g = c.getContext('2d');
+    const grad = g.createRadialGradient(64, 64, 0, 64, 64, 64);
+    grad.addColorStop(0, 'rgba(250,204,21,0.9)');
+    grad.addColorStop(0.35, 'rgba(250,204,21,0.28)');
+    grad.addColorStop(1, 'rgba(250,204,21,0)');
+    g.fillStyle = grad; g.fillRect(0, 0, 128, 128);
+    return new THREE.CanvasTexture(c);
+})();
+
+const markers = [];
+const PROJECT_T = [0.06, 0.20, 0.34, 0.48, 0.62, 0.76, 0.92];
+PROJECT_T.forEach((t, idx) => {
+    const p = trailCurve.getPointAt(t);
+    const hex = new THREE.Mesh(
+        new THREE.CylinderGeometry(2.4, 2.4, 1.1, 6),
+        new THREE.MeshBasicMaterial({ color: 0xfacc15 })
+    );
+    hex.position.set(p.x, p.y + 4.5, p.z);
+    scene.add(hex);
+
+    const sprite = new THREE.Sprite(new THREE.SpriteMaterial({
+        map: glowTex, transparent: true, opacity: 0.85,
+        blending: THREE.AdditiveBlending, depthWrite: false,
+    }));
+    sprite.scale.set(14, 14, 1);
+    sprite.position.copy(hex.position);
+    scene.add(sprite);
+
+    markers.push({ hex, sprite, t, idx });
+});
+
+/* ---------------- low-poly drifting clouds ---------------- */
+const cloudMat = new THREE.MeshBasicMaterial({
+    color: 0x22384f, transparent: true, opacity: 0.32, flatShading: true,
+});
+const clouds = [];
+for (let i = 0; i < 10; i++) {
+    const cg = new THREE.IcosahedronGeometry(8 + Math.random() * 10, 0);
+    cg.scale(1.9, 0.5, 1.2);
+    const m = new THREE.Mesh(cg, cloudMat);
+    m.position.set((Math.random() - 0.5) * 620, 62 + Math.random() * 26, (Math.random() - 0.5) * 620);
+    m.rotation.y = Math.random() * Math.PI;
+    m.userData.speed = 0.6 + Math.random() * 0.9;
+    scene.add(m);
+    clouds.push(m);
+}
+
+/* ---------------- camera rig: ride the trail on scroll ---------------- */
+const railFill = document.getElementById('railFill');
+const rose = document.getElementById('compassRose');
+const readout = document.getElementById('compassReadout');
+
+let scrollProgress = 0;
+function readScroll() {
+    const max = document.body.scrollHeight - innerHeight;
+    scrollProgress = Math.min(0.999, Math.max(0, scrollY / max));
+}
+addEventListener('scroll', readScroll, { passive: true });
+readScroll();
+
+const camPos = new THREE.Vector3();
+const camTarget = new THREE.Vector3();
+const smoothPos = new THREE.Vector3(0, 60, 340);
+const smoothTarget = new THREE.Vector3(0, 0, 0);
+
+function updateCamera(dt) {
+    const t = scrollProgress * 0.96;
+    const p = trailCurve.getPointAt(t);
+    const ahead = trailCurve.getPointAt(Math.min(0.999, t + 0.035));
+    const back = p.clone().sub(ahead).setY(0).normalize();
+
+    camPos.copy(p).addScaledVector(back, 38);
+    camPos.y = Math.max(p.y, terrainHeight(camPos.x, camPos.z)) + 24;
+    camTarget.copy(ahead).setY(ahead.y + 2);
+
+    const k = 1 - Math.pow(0.001, dt);
+    smoothPos.lerp(camPos, k);
+    smoothTarget.lerp(camTarget, k);
+    camera.position.copy(smoothPos);
+    camera.lookAt(smoothTarget);
+
+    // compass: camera azimuth
+    const dir = new THREE.Vector3();
+    camera.getWorldDirection(dir);
+    const azimuth = Math.atan2(dir.x, -dir.z); // 0 = north (−Z)
+    const deg = ((azimuth * 180 / Math.PI) + 360) % 360;
+    rose.style.transform = `rotate(${-deg}deg)`;
+    readout.textContent = String(Math.round(deg)).padStart(3, '0') + '°';
+
+    railFill.style.height = (scrollProgress * 100).toFixed(1) + '%';
+}
+
+/* ---------------- loop ---------------- */
+const clock = new THREE.Clock();
+function frame() {
+    const dt = Math.min(clock.getDelta(), 0.05);
+    const el = clock.elapsedTime;
+
+    markers.forEach(({ hex, sprite }, i) => {
+        hex.rotation.y = el * 0.6 + i;
+        sprite.material.opacity = 0.65 + Math.sin(el * 2 + i * 1.3) * 0.2;
+    });
+    clouds.forEach(c => {
+        c.position.x += c.userData.speed * dt * 2.4;
+        if (c.position.x > 340) c.position.x = -340;
+    });
+
+    updateCamera(dt);
+    renderer.render(scene, camera);
+    requestAnimationFrame(frame);
+}
+frame();
+
+addEventListener('resize', () => {
+    camera.aspect = innerWidth / innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(innerWidth, innerHeight);
+});
+</script>
+</body>
+</html>

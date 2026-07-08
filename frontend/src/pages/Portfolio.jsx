@@ -9,9 +9,8 @@ import { STATIONS } from "@/data/content";
 import About from "@/components/About";
 import Experience from "@/components/Experience";
 import Tools from "@/components/Tools";
-import TrailViewportGallery from "@/components/TrailViewportGallery";
+import WebGLGallery from "@/components/WebGLGallery";
 import Cursor from "@/components/Cursor";
-import TrailDivider from "@/components/TrailDivider";
 import Testimonials from "@/components/Testimonials";
 import Connect from "@/components/Connect";
 import ContactModal from "@/components/ContactModal";
@@ -62,7 +61,7 @@ export default function Portfolio() {
         <JourneyProvider>
             <Cursor />
             <main className="relative bg-ink">
-                <JourneyPanel onJump={handleJump} />
+                {/* <JourneyPanel onJump={handleJump} /> */}
                 <PowerupHUD />
                 <CinematicRide onJump={handleJump} />
                 <div data-stations-zone>
@@ -70,18 +69,10 @@ export default function Portfolio() {
                         <StationClip key={s.id} station={s} index={i} total={STATIONS.length} />
                     ))}
                 </div>
-                <TrailDivider n="01" label="About Me" accent="var(--cp-about)" />
                 <About />
-                {showExperience && (
-                    <>
-                        <TrailDivider n="02" label="Experience" accent="var(--cp-director)" />
-                        <Experience />
-                    </>
-                )}
-                <TrailDivider n="03" label="AI & Innovation" accent="var(--cp-ai)" />
+                {showExperience && <Experience />}
                 <Tools />
-                <TrailDivider n="04" label="Selected Works" accent="var(--cp-projects)" />
-                <TrailViewportGallery />
+                <WebGLGallery />
                 <Testimonials />
                 <Connect />
                 <ContactModal />
