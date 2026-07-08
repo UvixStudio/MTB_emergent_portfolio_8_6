@@ -462,7 +462,8 @@ export default function WebGLGallery() {
             if (loc.video) {
                 const media = el.querySelector('.media');
                 const vid = document.createElement('video');
-                vid.src=loc.video; vid.muted=true; vid.loop=true; vid.playsInline=true; vid.preload='metadata';
+                vid.src=loc.video; vid.muted=true; vid.loop=true; vid.playsInline=true; vid.preload='auto';
+                vid.load();
                 media.appendChild(vid);
                 const ICONS = {
                     play:'<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>',
@@ -495,8 +496,16 @@ export default function WebGLGallery() {
                 document.addEventListener('fullscreenchange',onFSChange); fsListeners.push(onFSChange);
                 track.addEventListener('click',e=>{e.stopPropagation(); const r=track.getBoundingClientRect(); if(vid.duration)vid.currentTime=((e.clientX-r.left)/r.width)*vid.duration;});
                 vid.addEventListener('timeupdate',()=>{if(!vid.duration)return; fill.style.width=(vid.currentTime/vid.duration*100).toFixed(1)+'%'; time.textContent=fmt(vid.currentTime);});
-                el.addEventListener('mouseenter',()=>{media.classList.add('playing'); vid.play().catch(()=>{}); playBtn.innerHTML=ICONS.pause;});
+                let hoverActive=false;
+                vid.addEventListener('playing',()=>{ if(hoverActive||document.fullscreenElement===media) media.classList.add('playing'); });
+                el.addEventListener('mouseenter',()=>{
+                    hoverActive=true;
+                    vid.play().catch(()=>{});
+                    if(vid.readyState>=3) media.classList.add('playing');
+                    playBtn.innerHTML=ICONS.pause;
+                });
                 el.addEventListener('mouseleave',()=>{
+                    hoverActive=false;
                     if(document.fullscreenElement===media) return;
                     media.classList.remove('playing');
                     setTimeout(()=>{if(!media.classList.contains('playing')&&document.fullscreenElement!==media)vid.pause();},500);
