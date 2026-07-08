@@ -77,6 +77,8 @@ const WGL_CSS = `
 #wgl-root .proj-card.on { opacity: 1; transform: translateY(0); pointer-events: auto; }
 #wgl-root .proj-card.on:hover, #wgl-root .proj-card.on.touch-open { opacity: 1 !important; }
 #wgl-root .card-float { width: 100%; animation: wgl-card-idle 6s ease-in-out infinite; }
+#wgl-root .proj-card .media.playing ~ * .card-float,
+#wgl-root .proj-card:has(.media.playing) .card-float { animation: none; transform: none; }
 @keyframes wgl-card-idle { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-9px); } }
 #wgl-root .card-3d { width: 100%; transform-style: preserve-3d; transition: transform 0.18s ease-out; will-change: transform; }
 #wgl-root .card-edge {
@@ -413,7 +415,7 @@ export default function WebGLGallery() {
                 const dx = (e.clientX - r.left) / r.width - 0.5;
                 const dy = (e.clientY - r.top)  / r.height - 0.5;
                 if (card.querySelector('.media.playing')) {
-                    inner.style.transform='rotateX(0deg) rotateY(0deg)'; img.style.objectPosition='50% 50%';
+                    inner.style.transform=''; card.style.filter='';
                     card.style.setProperty('--gx',`${((dx+0.5)*100).toFixed(1)}%`);
                     card.style.setProperty('--gy',`${((dy+0.5)*100).toFixed(1)}%`); return;
                 }
@@ -519,6 +521,29 @@ export default function WebGLGallery() {
                     if(document.fullscreenElement===media) return;
                     media.classList.remove('playing');
                     setTimeout(()=>{if(!media.classList.contains('playing')&&document.fullscreenElement!==media)vid.pause();},500);
+                });
+            }
+
+            if (loc.youtube) {
+                const media = el.querySelector('.media');
+                el.classList.add('has-video');
+                // iframe injected on first hover, destroyed on mouseleave to stop audio
+                let ytFrame = null;
+                const makeFrame = () => {
+                    const f = document.createElement('iframe');
+                    f.src = `https://www.youtube.com/embed/${loc.youtube}?autoplay=1&mute=1&controls=0&loop=1&playlist=${loc.youtube}&modestbranding=1&rel=0&playsinline=1`;
+                    f.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;border:0;pointer-events:none;';
+                    f.allow = 'autoplay; fullscreen';
+                    return f;
+                };
+                el.addEventListener('mouseenter',()=>{
+                    if(!ytFrame){ ytFrame=makeFrame(); media.appendChild(ytFrame); }
+                    media.classList.add('playing');
+                });
+                el.addEventListener('mouseleave',()=>{
+                    media.classList.remove('playing');
+                    // remove iframe to stop audio & reset position
+                    if(ytFrame){ ytFrame.remove(); ytFrame=null; }
                 });
             }
 
