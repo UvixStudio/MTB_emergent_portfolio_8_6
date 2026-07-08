@@ -77,6 +77,8 @@ const WGL_CSS = `
 #wgl-root .proj-card.on { opacity: 1; transform: translateY(0); pointer-events: auto; }
 #wgl-root .proj-card.on:hover, #wgl-root .proj-card.on.touch-open { opacity: 1 !important; }
 #wgl-root .card-float { width: 100%; animation: wgl-card-idle 6s ease-in-out infinite; }
+#wgl-root .proj-card .media.playing ~ * .card-float,
+#wgl-root .proj-card:has(.media.playing) .card-float { animation: none; transform: none; }
 @keyframes wgl-card-idle { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-9px); } }
 #wgl-root .card-3d { width: 100%; transform-style: preserve-3d; transition: transform 0.18s ease-out; will-change: transform; }
 #wgl-root .card-edge {
@@ -122,7 +124,8 @@ const WGL_CSS = `
 #wgl-root .vid-ui .vu-mute svg { width: 19px; height: 19px; }
 #wgl-root .vu-track { width: 100%; height: 4px; position: relative; cursor: pointer; background: rgba(255,255,255,0.18); }
 #wgl-root .vu-track:hover { height: 6px; }
-#wgl-root .vu-fill { height: 100%; width: 0%; background: var(--wgl-brand); box-shadow: 0 0 8px rgba(250,204,21,0.6); }
+#wgl-root .vu-buf { position: absolute; top: 0; left: 0; height: 100%; width: 0%; background: rgba(255,255,255,0.28); transition: width 0.4s ease; pointer-events: none; }
+#wgl-root .vu-fill { position: relative; z-index: 1; height: 100%; width: 0%; background: var(--wgl-brand); box-shadow: 0 0 8px rgba(250,204,21,0.6); }
 #wgl-root .vu-time { font-size: 10px; color: #fff; letter-spacing: 0.08em; font-variant-numeric: tabular-nums; flex: none; }
 #wgl-root .proj-card .panel {
     position: relative; z-index: 2; padding: 14px 22px 16px;
@@ -412,7 +415,7 @@ export default function WebGLGallery() {
                 const dx = (e.clientX - r.left) / r.width - 0.5;
                 const dy = (e.clientY - r.top)  / r.height - 0.5;
                 if (card.querySelector('.media.playing')) {
-                    inner.style.transform='rotateX(0deg) rotateY(0deg)'; img.style.objectPosition='50% 50%';
+                    inner.style.transform=''; card.style.filter='';
                     card.style.setProperty('--gx',`${((dx+0.5)*100).toFixed(1)}%`);
                     card.style.setProperty('--gy',`${((dy+0.5)*100).toFixed(1)}%`); return;
                 }
@@ -478,11 +481,11 @@ export default function WebGLGallery() {
                 };
                 const fmt = s => `${Math.floor(s/60)}:${String(Math.floor(s%60)).padStart(2,'0')}`;
                 const ui = document.createElement('div'); ui.className='vid-ui';
-                ui.innerHTML=`<div class="vu-track"><div class="vu-fill"></div></div><div class="vu-row"><button class="vu-play">${ICONS.pause}</button><span class="vu-time">0:00</span><button class="vu-mute">${ICONS.muted}</button><button class="vu-fs">${ICONS.expand}</button></div>`;
+                ui.innerHTML=`<div class="vu-track"><div class="vu-buf"></div><div class="vu-fill"></div></div><div class="vu-row"><button class="vu-play">${ICONS.pause}</button><span class="vu-time">0:00</span><button class="vu-mute">${ICONS.muted}</button><button class="vu-fs">${ICONS.expand}</button></div>`;
                 const panel = el.querySelector('.panel');
                 panel.insertBefore(ui, panel.firstChild);
                 const playBtn=ui.querySelector('.vu-play'), sndBtn=ui.querySelector('.vu-mute');
-                const track=ui.querySelector('.vu-track'), fill=ui.querySelector('.vu-fill'), time=ui.querySelector('.vu-time');
+                const track=ui.querySelector('.vu-track'), fill=ui.querySelector('.vu-fill'), buf=ui.querySelector('.vu-buf'), time=ui.querySelector('.vu-time');
                 playBtn.addEventListener('click',e=>{e.stopPropagation(); if(vid.paused)vid.play();else vid.pause(); playBtn.innerHTML=vid.paused?ICONS.play:ICONS.pause;});
                 sndBtn.addEventListener('click',e=>{e.stopPropagation(); vid.muted=!vid.muted; sndBtn.innerHTML=vid.muted?ICONS.muted:ICONS.sound;});
                 const fsBtn=ui.querySelector('.vu-fs');
@@ -499,6 +502,9 @@ export default function WebGLGallery() {
                 document.addEventListener('fullscreenchange',onFSChange); fsListeners.push(onFSChange);
                 track.addEventListener('click',e=>{e.stopPropagation(); const r=track.getBoundingClientRect(); if(vid.duration)vid.currentTime=((e.clientX-r.left)/r.width)*vid.duration;});
                 vid.addEventListener('timeupdate',()=>{if(!vid.duration)return; fill.style.width=(vid.currentTime/vid.duration*100).toFixed(1)+'%'; time.textContent=fmt(vid.currentTime);});
+                const updBuf=()=>{ if(!vid.duration||!vid.buffered.length)return; buf.style.width=(vid.buffered.end(vid.buffered.length-1)/vid.duration*100).toFixed(1)+'%'; };
+                vid.addEventListener('progress',updBuf);
+                vid.addEventListener('timeupdate',updBuf);
                 let hoverActive=false;
                 // thumbnail stays visible until real frames render — no blank state, no spinner
                 vid.addEventListener('playing',()=>{
@@ -515,6 +521,29 @@ export default function WebGLGallery() {
                     if(document.fullscreenElement===media) return;
                     media.classList.remove('playing');
                     setTimeout(()=>{if(!media.classList.contains('playing')&&document.fullscreenElement!==media)vid.pause();},500);
+                });
+            }
+
+            if (loc.youtube) {
+                const media = el.querySelector('.media');
+                el.classList.add('has-video');
+                // iframe injected on first hover, destroyed on mouseleave to stop audio
+                let ytFrame = null;
+                const makeFrame = () => {
+                    const f = document.createElement('iframe');
+                    f.src = `https://www.youtube.com/embed/${loc.youtube}?autoplay=1&mute=1&controls=0&loop=1&playlist=${loc.youtube}&modestbranding=1&rel=0&playsinline=1`;
+                    f.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;border:0;pointer-events:none;';
+                    f.allow = 'autoplay; fullscreen';
+                    return f;
+                };
+                el.addEventListener('mouseenter',()=>{
+                    if(!ytFrame){ ytFrame=makeFrame(); media.appendChild(ytFrame); }
+                    media.classList.add('playing');
+                });
+                el.addEventListener('mouseleave',()=>{
+                    media.classList.remove('playing');
+                    // remove iframe to stop audio & reset position
+                    if(ytFrame){ ytFrame.remove(); ytFrame=null; }
                 });
             }
 
