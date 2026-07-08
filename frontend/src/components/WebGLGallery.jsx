@@ -102,6 +102,19 @@ const WGL_CSS = `
     pointer-events: none; opacity: 0; transition: opacity 0.45s ease 0.15s;
 }
 #wgl-root .proj-card .media.playing video { opacity: 1; }
+#wgl-root .vid-loader {
+    position: absolute; inset: 0; z-index: 2; display: none; place-items: center;
+    background: rgba(4,8,15,0.55); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+}
+#wgl-root .media.vid-loading .vid-loader { display: grid; }
+#wgl-root .vid-loader .vl-wrap { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+#wgl-root .vid-loader .vl-spin {
+    width: 40px; height: 40px; border-radius: 50%;
+    border: 2px solid rgba(255,255,255,0.15); border-top-color: var(--wgl-brand);
+    animation: wgl-spin 0.9s linear infinite;
+}
+#wgl-root .vid-loader .vl-pct { font-size: 11px; letter-spacing: 0.24em; color: rgba(230,237,245,0.7); font-variant-numeric: tabular-nums; }
+@keyframes wgl-spin { to { transform: rotate(360deg); } }
 #wgl-root .vid-ui {
     position: absolute; left: 0; right: 0; top: 0; z-index: 3;
     opacity: 0; transition: opacity 0.3s ease; pointer-events: none;
@@ -464,6 +477,17 @@ export default function WebGLGallery() {
                 const vid = document.createElement('video');
                 vid.src=loc.video; vid.muted=true; vid.loop=true; vid.playsInline=true; vid.preload='auto';
                 vid.load();
+                const loader=document.createElement('div');
+                loader.className='vid-loader';
+                loader.innerHTML='<div class="vl-wrap"><div class="vl-spin"></div><div class="vl-pct">0%</div></div>';
+                media.appendChild(loader);
+                const pctEl=loader.querySelector('.vl-pct');
+                const updPct=()=>{
+                    if(!vid.duration||!vid.buffered.length)return;
+                    pctEl.textContent=Math.min(100,Math.round(vid.buffered.end(vid.buffered.length-1)/vid.duration*100))+'%';
+                };
+                vid.addEventListener('progress',updPct);
+                vid.addEventListener('canplaythrough',()=>{pctEl.textContent='100%';});
                 media.appendChild(vid);
                 const ICONS = {
                     play:'<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>',
@@ -497,15 +521,22 @@ export default function WebGLGallery() {
                 track.addEventListener('click',e=>{e.stopPropagation(); const r=track.getBoundingClientRect(); if(vid.duration)vid.currentTime=((e.clientX-r.left)/r.width)*vid.duration;});
                 vid.addEventListener('timeupdate',()=>{if(!vid.duration)return; fill.style.width=(vid.currentTime/vid.duration*100).toFixed(1)+'%'; time.textContent=fmt(vid.currentTime);});
                 let hoverActive=false;
-                vid.addEventListener('playing',()=>{ if(hoverActive||document.fullscreenElement===media) media.classList.add('playing'); });
+                vid.addEventListener('playing',()=>{
+                    if(hoverActive||document.fullscreenElement===media){
+                        media.classList.add('playing');
+                        media.classList.remove('vid-loading');
+                    }
+                });
                 el.addEventListener('mouseenter',()=>{
                     hoverActive=true;
                     vid.play().catch(()=>{});
                     if(vid.readyState>=3) media.classList.add('playing');
+                    else media.classList.add('vid-loading');
                     playBtn.innerHTML=ICONS.pause;
                 });
                 el.addEventListener('mouseleave',()=>{
                     hoverActive=false;
+                    media.classList.remove('vid-loading');
                     if(document.fullscreenElement===media) return;
                     media.classList.remove('playing');
                     setTimeout(()=>{if(!media.classList.contains('playing')&&document.fullscreenElement!==media)vid.pause();},500);
