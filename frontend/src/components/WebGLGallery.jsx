@@ -462,9 +462,12 @@ export default function WebGLGallery() {
             if (loc.video) {
                 const media = el.querySelector('.media');
                 const vid = document.createElement('video');
-                vid.src=loc.video; vid.muted=true; vid.loop=true; vid.playsInline=true; vid.preload='auto';
-                vid.load();
+                vid.src=loc.video; vid.muted=true; vid.loop=true; vid.playsInline=true; vid.preload='none';
                 media.appendChild(vid);
+                // defer background preload until the whole page (hero included) has loaded
+                const startPreload=()=>{ vid.preload='auto'; vid.load(); };
+                if(document.readyState==='complete') startPreload();
+                else window.addEventListener('load',startPreload,{once:true});
                 const ICONS = {
                     play:'<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>',
                     pause:'<svg viewBox="0 0 24 24"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>',
@@ -497,7 +500,10 @@ export default function WebGLGallery() {
                 track.addEventListener('click',e=>{e.stopPropagation(); const r=track.getBoundingClientRect(); if(vid.duration)vid.currentTime=((e.clientX-r.left)/r.width)*vid.duration;});
                 vid.addEventListener('timeupdate',()=>{if(!vid.duration)return; fill.style.width=(vid.currentTime/vid.duration*100).toFixed(1)+'%'; time.textContent=fmt(vid.currentTime);});
                 let hoverActive=false;
-                vid.addEventListener('playing',()=>{ if(hoverActive||document.fullscreenElement===media) media.classList.add('playing'); });
+                // thumbnail stays visible until real frames render — no blank state, no spinner
+                vid.addEventListener('playing',()=>{
+                    if(hoverActive||el.classList.contains('touch-open')||document.fullscreenElement===media) media.classList.add('playing');
+                });
                 el.addEventListener('mouseenter',()=>{
                     hoverActive=true;
                     vid.play().catch(()=>{});
@@ -518,7 +524,7 @@ export default function WebGLGallery() {
                 const flash = () => { const u=el.querySelector('.vid-ui'); if(!u)return; u.classList.remove('vu-idle'); clearTimeout(idleTimer); idleTimer=setTimeout(()=>u.classList.add('vu-idle'),2000); };
                 el.addEventListener('click',e=>{
                     if(e.target.closest('.vid-ui')||e.target.closest('.corner')||document.fullscreenElement)return;
-                    if(!el.classList.contains('touch-open')){e.preventDefault();el.classList.add('touch-open');if(loc.video){const m=el.querySelector('.media');m.classList.add('playing');const v=m.querySelector('video');if(v)v.play().catch(()=>{});flash();}return;}
+                    if(!el.classList.contains('touch-open')){e.preventDefault();el.classList.add('touch-open');if(loc.video){const m=el.querySelector('.media');const v=m.querySelector('video');if(v){v.play().catch(()=>{});if(v.readyState>=3)m.classList.add('playing');}flash();}return;}
                     const ve=e.target.closest('video'); if(ve){e.preventDefault();if(ve.paused)ve.play();else ve.pause();flash();return;}
                     if(loc.href&&loc.href!=='#')window.open(loc.href,'_blank');
                 });
