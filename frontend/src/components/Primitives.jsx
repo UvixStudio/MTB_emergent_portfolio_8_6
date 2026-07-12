@@ -158,7 +158,10 @@ export function BigHeading({
     );
 }
 
-/* ── Smaller section heading, used inline with content ──────── */
+/* ── Smaller section heading, used inline with content ────────
+   Typographic rhythm: the big heading is title-case (not shouted),
+   while the small numeral keeps the uppercase HUD voice. This breaks
+   the uniform-uppercase monotony across the page.                  */
 export function TrailHeading({ n, label, color = "var(--brand)" }) {
     return (
         <div className="flex flex-wrap items-baseline gap-3">
@@ -178,11 +181,11 @@ export function TrailHeading({ n, label, color = "var(--brand)" }) {
                 stagger={0.05}
                 y={18}
                 blur={5}
-                className="font-display font-black uppercase text-white drop-shadow-[0_3px_10px_rgba(0,0,0,0.8)]"
+                className="font-display font-black text-white drop-shadow-[0_3px_10px_rgba(0,0,0,0.8)]"
                 style={{
                     fontSize: "clamp(1.875rem, 5vw, 3.5rem)",
-                    lineHeight: 0.95,
-                    letterSpacing: "-0.025em",
+                    lineHeight: 0.98,
+                    letterSpacing: "-0.02em",
                 }}
             />
         </div>

@@ -10,8 +10,11 @@ const WGL_CSS = `
 }
 #wgl-root .scrim { position: absolute; inset: 0; z-index: 4; pointer-events: none; }
 #wgl-root .scrim::before {
-    content: ""; position: absolute; inset: 0 0 auto 0; height: 34vh;
-    background: linear-gradient(to bottom, rgba(4,8,15,0.92) 0%, rgba(4,8,15,0.55) 40%, transparent 100%);
+    content: ""; position: absolute; inset: 0 0 auto 0; height: 26vh;
+    background: rgba(4,8,15,0.28);
+    backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+    -webkit-mask: linear-gradient(to bottom, black 55%, transparent 100%);
+    mask: linear-gradient(to bottom, black 55%, transparent 100%);
 }
 #wgl-root .scrim::after {
     content: ""; position: absolute; inset: auto 0 0 0; height: 22vh;
@@ -104,6 +107,13 @@ const WGL_CSS = `
     pointer-events: none; opacity: 0; transition: opacity 0.45s ease 0.15s;
 }
 #wgl-root .proj-card .media.playing video { opacity: 1; }
+#wgl-root .proj-card .media .wistia-holder {
+    position: absolute; inset: 0; overflow: hidden; pointer-events: none;
+    opacity: 0; transition: opacity 0.45s ease 0.15s;
+}
+#wgl-root .proj-card .media .wistia-holder .wistia_embed { width: 100%; height: 100%; }
+#wgl-root .proj-card .media.playing .wistia-holder { opacity: 1; }
+#wgl-root .proj-card .media:fullscreen .wistia-holder { opacity: 1 !important; }
 #wgl-root .vid-ui {
     position: absolute; left: 0; right: 0; top: 0; z-index: 3;
     opacity: 0; transition: opacity 0.3s ease; pointer-events: none;
@@ -153,6 +163,28 @@ const WGL_CSS = `
 #wgl-root #cursorHex.show { opacity: 1; transform: translate(-50%,-50%) scale(1); }
 #wgl-root #cursorHex .hx { text-align: center; font-family: "Sora", sans-serif; font-weight: 800; font-size: 11px; line-height: 1.25; letter-spacing: 0.08em; color: #0a1422; text-transform: uppercase; }
 #wgl-root #cursorHex .hx svg { display: block; width: 18px; height: 18px; margin: 5px auto 0; }
+@media (max-width: 767px) {
+    #wgl-root .scrim::before {
+        height: 32vh;
+        background: rgba(4,8,15,0.32);
+        backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+        -webkit-mask: linear-gradient(to bottom, black 50%, transparent 100%);
+        mask: linear-gradient(to bottom, black 50%, transparent 100%);
+    }
+    #wgl-root .hud-title { top: 24px; left: 16px; right: 16px; max-width: none; gap: 12px; }
+    #wgl-root .title-badge { width: 48px; height: 48px; }
+    #wgl-root .title-badge svg { width: 30px; height: 30px; }
+    #wgl-root .hud-title h1 { font-size: 30px; }
+    #wgl-root .hud-title p { font-size: 14px; max-width: none; margin-top: 8px; }
+    #wgl-root .rail { left: 16px; height: 140px; }
+    #wgl-root .compass { width: 48px; height: 48px; right: 8px; bottom: 6px; }
+    #wgl-root .compass-readout { display: none; }
+    #wgl-root .hud-hint { bottom: 16px; font-size: 10px; }
+    #wgl-root .proj-card .panel { padding: 10px 16px 12px; }
+    #wgl-root .proj-card .panel h3 { font-size: 16px; }
+    #wgl-root .proj-card .panel .sub { font-size: 10px; margin-top: 2px; }
+    #wgl-root .proj-card .more { display: none; }
+}
 `;
 
 export default function WebGLGallery() {
@@ -237,11 +269,11 @@ export default function WebGLGallery() {
             }
             return d;
         }
-        const H_SCALE = 64;
+        const H_SCALE = 36;
         function terrainHeight(x, z) {
             const nx = x * 0.0048, nz = z * 0.0048;
             let h = ridged(nx, nz) * 0.5 + (fbm(nx * 1.5, nz * 1.5) * 0.5 + 0.5) * 0.5;
-            h = Math.pow(Math.max(0, h), 1.45) * H_SCALE;
+            h = Math.pow(Math.max(0, h), 1.1) * H_SCALE;
             const d = distToRoute(x, z);
             const corridor = Math.min(1, d / 30);
             const ease = corridor * corridor * (3 - 2 * corridor);
@@ -253,8 +285,30 @@ export default function WebGLGallery() {
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         renderer.setSize(window.innerWidth, window.innerHeight);
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x04080f);
-        scene.fog = new THREE.FogExp2(0x04080f, 0.0021);
+        // sky dome — gradient from zenith to horizon
+        scene.background = new THREE.Color(0x020b1e);
+        scene.fog = new THREE.FogExp2(0x081428, 0.002);
+        const skyDome = new THREE.Mesh(
+            new THREE.SphereGeometry(600,32,16),
+            new THREE.ShaderMaterial({
+                side:THREE.BackSide, depthWrite:false, depthTest:false,
+                uniforms:{
+                    uZenith:{value:new THREE.Color('#020c20')},
+                    uMid:   {value:new THREE.Color('#061428')},
+                    uHorizon:{value:new THREE.Color('#0e2040')},
+                },
+                vertexShader:`varying float vY; void main(){ vY=normalize(position).y; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }`,
+                fragmentShader:`varying float vY; uniform vec3 uZenith,uMid,uHorizon;
+                    void main(){
+                        float t=clamp(vY,0.0,1.0);
+                        vec3 c=mix(uHorizon,uMid,smoothstep(0.0,0.25,t));
+                        c=mix(c,uZenith,smoothstep(0.18,0.75,t));
+                        gl_FragColor=vec4(c,1.0);
+                    }`,
+            })
+        );
+        skyDome.renderOrder = -2;
+        scene.add(skyDome);
         const camera = new THREE.PerspectiveCamera(56, window.innerWidth / window.innerHeight, 0.5, 1400);
 
         // ── terrain ──
@@ -267,11 +321,11 @@ export default function WebGLGallery() {
         const terrainMat = new THREE.ShaderMaterial({
             fog: true,
             uniforms: THREE.UniformsUtils.merge([THREE.UniformsLib.fog, {
-                uBase:  { value: new THREE.Color(0x2e5178) },
-                uDeep:  { value: new THREE.Color(0x142944) },
+                uBase:  { value: new THREE.Color(0x1e3255) },
+                uDeep:  { value: new THREE.Color(0x0c1a30) },
                 uGold:  { value: new THREE.Color(0xfacc15) },
-                uSnow:  { value: new THREE.Color(0x8fb2d4) },
-                uLight: { value: new THREE.Vector3(0.45, 0.75, 0.42).normalize() },
+                uSnow:  { value: new THREE.Color(0x263850) },
+                uLight: { value: new THREE.Vector3(0.25, 0.88, 0.30).normalize() },
             }]),
             vertexShader: `
                 varying float vH; varying vec3 vNorm;
@@ -288,10 +342,10 @@ export default function WebGLGallery() {
                 #include <fog_pars_fragment>
                 void main() {
                     float lambert = clamp(dot(normalize(vNorm), uLight), 0.0, 1.0);
-                    float hMix = clamp(vH / 64.0, 0.0, 1.0);
+                    float hMix = clamp(vH / 36.0, 0.0, 1.0);
                     vec3 col = mix(uDeep, uBase, 0.28 + 0.72 * hMix);
                     col = mix(col, uSnow, smoothstep(0.72, 0.98, hMix) * 0.55);
-                    col *= 1.02 + 0.62 * lambert;
+                    col *= 0.72 + 1.2 * lambert;
                     float freq = 0.10; float f = fract(vH * freq); float w = fwidth(vH * freq);
                     float line = 1.0 - smoothstep(w * 1.0, w * 2.2, min(f, 1.0 - f));
                     col = mix(col, uGold, line * (0.05 + 0.16 * hMix));
@@ -352,6 +406,8 @@ export default function WebGLGallery() {
                     }`,
             });
         }
+        // singletrack dirt path under the trail line
+        scene.add(new THREE.Mesh(new THREE.TubeGeometry(trailCurve,600,1.1,6,false),new THREE.MeshBasicMaterial({color:0x2a2c28,transparent:true,opacity:0.82,depthWrite:false})));
         scene.add(new THREE.Mesh(new THREE.TubeGeometry(trailCurve, 900, 0.10, 6, false), trailMaterial(1.0, 0.42, false)));
         scene.add(new THREE.Mesh(new THREE.TubeGeometry(trailCurve, 900, 0.38, 6, false), trailMaterial(0.12, 0.035, true)));
 
@@ -386,6 +442,7 @@ export default function WebGLGallery() {
               video:'/projects/Baboon/baboon_web.mp4', img:IMG+'baboon.jpeg',
               desc:'An Instagram story turned surreal biker legend — generative character-swap video pipeline.', tags:['AI Video','Character Swap','R&D'], card:true },
             { t:0.33, name:'Digitel TLV', sub:'AI Video & 3D · Social', aspect:'16:9',
+              wistia:'v0zvsnrnq7g8sh3',
               img:IMG+'magnific__photo-a-swimming-pool-with-inflatable-letters-spel__23382.jpg',
               desc:'A summer social campaign that solved Hebrew typography in generative 3D — custom Hunyuan 3D pipeline, 72-hour turnaround.', tags:['AI Video','3D','Campaign'], card:true },
             { t:0.44, name:'Promee', sub:'AI Video · Brand Film', aspect:'16:9',
@@ -437,15 +494,26 @@ export default function WebGLGallery() {
         const fsListeners = [];
         const cursorHex = cursorHexRef.current;
 
-        function buildCard(loc) {
-            const el = document.createElement('div');
-            el.className = loc.video ? 'proj-card has-video' : 'proj-card';
+        function sizeCard(el, loc) {
             const [aw, ah] = (loc.aspect || '16:9').split(':').map(Number);
             const vertical = ah > aw;
-            const cardW = vertical ? 330 : 660;
-            const mediaH = Math.min(Math.round(cardW * ah / aw), 520);
+            let cardW, mediaH;
+            if (window.innerWidth < 768) {
+                // mobile: compact 16:10 media, bottom-anchored — upper two-thirds stay clear for the 3D trail
+                cardW = Math.min(window.innerWidth - 32, 420);
+                mediaH = Math.min(Math.round(cardW * 10 / 16), Math.round(window.innerHeight * 0.30));
+            } else {
+                cardW = vertical ? 330 : 660;
+                mediaH = Math.min(Math.round(cardW * ah / aw), 520);
+            }
             el.style.width = cardW + 'px';
             el.style.setProperty('--media-h', mediaH + 'px');
+        }
+
+        function buildCard(loc) {
+            const el = document.createElement('div');
+            el.className = (loc.video || loc.wistia) ? 'proj-card has-video' : 'proj-card';
+            sizeCard(el, loc);
             el.innerHTML = `
                 <div class="card-float"><div class="card-3d">
                     <a class="corner" href="${loc.href || '#'}" aria-label="Open project">
@@ -462,15 +530,76 @@ export default function WebGLGallery() {
             cardsContainer.appendChild(el);
             attachTilt(el);
 
-            if (loc.video) {
+            // `player` adapts either a plain <video> or a chrome-less Wistia
+            // embed to the same interface, so the rest of this block (the
+            // .vid-ui bar) and the touch handler below don't care which one
+            // they're driving. Hoisted here so IS_TOUCH block can see it too.
+            let player = null;
+            if (loc.video || loc.wistia) {
                 const media = el.querySelector('.media');
-                const vid = document.createElement('video');
-                vid.src=loc.video; vid.muted=true; vid.loop=true; vid.playsInline=true; vid.preload='none';
-                media.appendChild(vid);
-                // defer background preload until the whole page (hero included) has loaded
-                const startPreload=()=>{ vid.preload='auto'; vid.load(); };
-                if(document.readyState==='complete') startPreload();
-                else window.addEventListener('load',startPreload,{once:true});
+                if (loc.wistia) {
+                    const holder = document.createElement('div');
+                    holder.className = 'wistia-holder';
+                    const embedDiv = document.createElement('div');
+                    embedDiv.className = `wistia_embed wistia_async_${loc.wistia} `
+                        + 'controlsVisibleOnLoad=false playButton=false smallPlayButton=false '
+                        + 'playbar=false settingsControl=false volumeControl=false '
+                        + 'fullscreenButton=false silentAutoPlay=allow endVideoBehavior=loop';
+                    holder.appendChild(embedDiv);
+                    media.appendChild(holder);
+
+                    let handle = null, pendingPlay = false, tuCb = null;
+                    window._wq = window._wq || [];
+                    window._wq.push({ id: loc.wistia, onReady(video) {
+                        handle = video;
+                        video.mute();
+                        video.bind('timechange', (t) => { if (tuCb) tuCb(t, video.duration()); });
+                        if (pendingPlay) video.play();
+                    } });
+
+                    player = {
+                        get paused() { return !handle || handle.state() !== 'playing'; },
+                        get muted() { return !handle || handle.volume() === 0; },
+                        get duration() { return handle ? handle.duration() : 0; },
+                        get readyState() { return handle ? 3 : 0; },
+                        play() { handle ? handle.play() : (pendingPlay = true); },
+                        pause() { if (handle) handle.pause(); },
+                        setMuted(m) { if (handle) (m ? handle.mute() : handle.unmute()); },
+                        seekTo(t) { if (handle) handle.time(t); },
+                        onTimeUpdate(cb) { tuCb = cb; },
+                        onPlaying(cb) { window._wq.push({ id: loc.wistia, onReady: v => v.bind('play', cb) }); },
+                    };
+                } else {
+                    const vid = document.createElement('video');
+                    vid.src=loc.video; vid.muted=true; vid.loop=true; vid.playsInline=true; vid.preload='none';
+                    media.appendChild(vid);
+                    // defer background preload until the whole page (hero included) has loaded
+                    const startPreload=()=>{ vid.preload='auto'; vid.load(); };
+                    if(document.readyState==='complete') startPreload();
+                    else window.addEventListener('load',startPreload,{once:true});
+
+                    player = {
+                        get paused() { return vid.paused; },
+                        get muted() { return vid.muted; },
+                        get duration() { return vid.duration; },
+                        get readyState() { return vid.readyState; },
+                        play() { return vid.play(); },
+                        pause() { vid.pause(); },
+                        setMuted(m) { vid.muted = m; },
+                        seekTo(t) { vid.currentTime = t; },
+                        onTimeUpdate(cb) { vid.addEventListener('timeupdate', () => cb(vid.currentTime, vid.duration)); },
+                        onPlaying(cb) { vid.addEventListener('playing', cb); },
+                    };
+                    // buffered indicator only makes sense for the local <video> path
+                    const updBufNative = (buf) => {
+                        if(!vid.duration||!vid.buffered.length) return;
+                        buf.style.width=(vid.buffered.end(vid.buffered.length-1)/vid.duration*100).toFixed(1)+'%';
+                    };
+                    player._wireBuffer = (buf) => {
+                        vid.addEventListener('progress', () => updBufNative(buf));
+                        vid.addEventListener('timeupdate', () => updBufNative(buf));
+                    };
+                }
                 const ICONS = {
                     play:'<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>',
                     pause:'<svg viewBox="0 0 24 24"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>',
@@ -486,8 +615,8 @@ export default function WebGLGallery() {
                 panel.insertBefore(ui, panel.firstChild);
                 const playBtn=ui.querySelector('.vu-play'), sndBtn=ui.querySelector('.vu-mute');
                 const track=ui.querySelector('.vu-track'), fill=ui.querySelector('.vu-fill'), buf=ui.querySelector('.vu-buf'), time=ui.querySelector('.vu-time');
-                playBtn.addEventListener('click',e=>{e.stopPropagation(); if(vid.paused)vid.play();else vid.pause(); playBtn.innerHTML=vid.paused?ICONS.play:ICONS.pause;});
-                sndBtn.addEventListener('click',e=>{e.stopPropagation(); vid.muted=!vid.muted; sndBtn.innerHTML=vid.muted?ICONS.muted:ICONS.sound;});
+                playBtn.addEventListener('click',e=>{e.stopPropagation(); if(player.paused)player.play();else player.pause(); setTimeout(()=>{playBtn.innerHTML=player.paused?ICONS.play:ICONS.pause;},60);});
+                sndBtn.addEventListener('click',e=>{e.stopPropagation(); player.setMuted(!player.muted); sndBtn.innerHTML=player.muted?ICONS.muted:ICONS.sound;});
                 const fsBtn=ui.querySelector('.vu-fs');
                 fsBtn.addEventListener('click',e=>{e.stopPropagation(); if(document.fullscreenElement)document.exitFullscreen();else media.requestFullscreen();});
                 const onFSChange=()=>{
@@ -496,31 +625,29 @@ export default function WebGLGallery() {
                     if(inFS) media.appendChild(ui);
                     else {
                         panel.insertBefore(ui, panel.firstChild);
-                        if(!el.matches(':hover')){ media.classList.remove('playing'); vid.pause(); }
+                        if(!el.matches(':hover')){ media.classList.remove('playing'); player.pause(); }
                     }
                 };
                 document.addEventListener('fullscreenchange',onFSChange); fsListeners.push(onFSChange);
-                track.addEventListener('click',e=>{e.stopPropagation(); const r=track.getBoundingClientRect(); if(vid.duration)vid.currentTime=((e.clientX-r.left)/r.width)*vid.duration;});
-                vid.addEventListener('timeupdate',()=>{if(!vid.duration)return; fill.style.width=(vid.currentTime/vid.duration*100).toFixed(1)+'%'; time.textContent=fmt(vid.currentTime);});
-                const updBuf=()=>{ if(!vid.duration||!vid.buffered.length)return; buf.style.width=(vid.buffered.end(vid.buffered.length-1)/vid.duration*100).toFixed(1)+'%'; };
-                vid.addEventListener('progress',updBuf);
-                vid.addEventListener('timeupdate',updBuf);
+                track.addEventListener('click',e=>{e.stopPropagation(); const r=track.getBoundingClientRect(); if(player.duration)player.seekTo(((e.clientX-r.left)/r.width)*player.duration);});
+                player.onTimeUpdate((t,d)=>{if(!d)return; fill.style.width=(t/d*100).toFixed(1)+'%'; time.textContent=fmt(t);});
+                if (player._wireBuffer) player._wireBuffer(buf);
                 let hoverActive=false;
                 // thumbnail stays visible until real frames render — no blank state, no spinner
-                vid.addEventListener('playing',()=>{
+                player.onPlaying(()=>{
                     if(hoverActive||el.classList.contains('touch-open')||document.fullscreenElement===media) media.classList.add('playing');
                 });
                 el.addEventListener('mouseenter',()=>{
                     hoverActive=true;
-                    vid.play().catch(()=>{});
-                    if(vid.readyState>=3) media.classList.add('playing');
+                    player.play();
+                    if(player.readyState>=3) media.classList.add('playing');
                     playBtn.innerHTML=ICONS.pause;
                 });
                 el.addEventListener('mouseleave',()=>{
                     hoverActive=false;
                     if(document.fullscreenElement===media) return;
                     media.classList.remove('playing');
-                    setTimeout(()=>{if(!media.classList.contains('playing')&&document.fullscreenElement!==media)vid.pause();},500);
+                    setTimeout(()=>{if(!media.classList.contains('playing')&&document.fullscreenElement!==media)player.pause();},500);
                 });
             }
 
@@ -553,8 +680,8 @@ export default function WebGLGallery() {
                 const flash = () => { const u=el.querySelector('.vid-ui'); if(!u)return; u.classList.remove('vu-idle'); clearTimeout(idleTimer); idleTimer=setTimeout(()=>u.classList.add('vu-idle'),2000); };
                 el.addEventListener('click',e=>{
                     if(e.target.closest('.vid-ui')||e.target.closest('.corner')||document.fullscreenElement)return;
-                    if(!el.classList.contains('touch-open')){e.preventDefault();el.classList.add('touch-open');if(loc.video){const m=el.querySelector('.media');const v=m.querySelector('video');if(v){v.play().catch(()=>{});if(v.readyState>=3)m.classList.add('playing');}flash();}return;}
-                    const ve=e.target.closest('video'); if(ve){e.preventDefault();if(ve.paused)ve.play();else ve.pause();flash();return;}
+                    if(!el.classList.contains('touch-open')){e.preventDefault();el.classList.add('touch-open');if(player){media.classList.add('playing');player.play();flash();}return;}
+                    if(player&&(e.target.closest('video')||e.target.closest('.wistia-holder'))){e.preventDefault();if(player.paused)player.play();else player.pause();flash();return;}
                     if(loc.href&&loc.href!=='#')window.open(loc.href,'_blank');
                 });
                 return el;
@@ -562,7 +689,7 @@ export default function WebGLGallery() {
 
             el.addEventListener('mousemove',e=>{
                 const overUi=e.target.closest('.vid-ui'); const playing=el.querySelector('.media.playing');
-                const active=!overUi&&!document.fullscreenElement&&(loc.video?!!playing:true);
+                const active=!overUi&&!document.fullscreenElement&&((loc.video||loc.wistia)?!!playing:true);
                 el.classList.toggle('hexing',active); if(cursorHex)cursorHex.classList.toggle('show',active);
                 if(active&&cursorHex){cursorHex.style.left=e.clientX+'px'; cursorHex.style.top=e.clientY+'px';}
             });
@@ -575,7 +702,8 @@ export default function WebGLGallery() {
         const markers = [];
         LOCATIONS.forEach((loc, idx) => {
             const p = trailCurve.getPointAt(loc.t);
-            const STEM_H = 11;
+            // mobile: shorter stems keep flags & labels clear of the intro text
+            const STEM_H = window.innerWidth < 768 ? 7 : 11;
             const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.06,0.06,STEM_H,4), new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:0.7}));
             stem.position.set(p.x, p.y+STEM_H/2, p.z); scene.add(stem);
             const flagMat = new THREE.ShaderMaterial({
@@ -601,18 +729,60 @@ export default function WebGLGallery() {
             sprite.scale.set(9,9,1); sprite.position.set(p.x,p.y+STEM_H-1.0,p.z); scene.add(sprite);
             markers.push({ flag, flagMat, ring1, ring2, ringMat1, ringMat2, sprite, loc, t:loc.t, world:new THREE.Vector3(p.x,p.y+STEM_H,p.z), card:loc.card?buildCard(loc):null });
         });
+        if(markers.length) markers[markers.length-1].isLast=true;
+        // campfire/torch glow at each waypoint
+        markers.forEach(m=>{
+            const p=trailCurve.getPointAt(m.t);
+            const gl=new THREE.PointLight(0xff8830,1.6,24);
+            gl.position.set(p.x,terrainHeight(p.x,p.z)+1.8,p.z);
+            scene.add(gl);
+        });
 
         // ── clouds ──
-        const cloudMat = new THREE.MeshBasicMaterial({color:0x2a4058,transparent:true,opacity:0.3});
-        const clouds = [];
-        for (let i = 0; i < 10; i++) {
-            const cg = new THREE.IcosahedronGeometry(8+Math.random()*10,0);
-            cg.scale(1.9,0.5,1.2);
-            const m = new THREE.Mesh(cg,cloudMat);
-            m.position.set((Math.random()-0.5)*640, 72+Math.random()*26, (Math.random()-0.5)*640);
-            m.rotation.y=Math.random()*Math.PI; m.userData.speed=0.6+Math.random()*0.9;
+        function makeCloudTex() {
+            const c=document.createElement('canvas'); c.width=c.height=256; const g=c.getContext('2d');
+            [[128,148,88],[92,158,56],[168,154,60],[72,168,38],[186,160,36],[130,122,50],[148,172,44]].forEach(([cx,cy,r])=>{
+                const gr=g.createRadialGradient(cx,cy,0,cx,cy,r);
+                gr.addColorStop(0,'rgba(255,255,255,0.96)'); gr.addColorStop(0.45,'rgba(232,248,255,0.55)'); gr.addColorStop(1,'rgba(208,235,252,0)');
+                g.fillStyle=gr; g.beginPath(); g.ellipse(cx,cy,r*1.55,r*0.72,0,0,Math.PI*2); g.fill();
+            });
+            return new THREE.CanvasTexture(c);
+        }
+        const cloudTexPool=[makeCloudTex(),makeCloudTex(),makeCloudTex()];
+        const clouds=[];
+        for(let i=0;i<20;i++){
+            const w=80+Math.random()*120, h=w*(0.28+Math.random()*0.14);
+            const mat=new THREE.MeshBasicMaterial({map:cloudTexPool[i%3],transparent:true,opacity:0.12+Math.random()*0.14,depthWrite:false,side:THREE.DoubleSide});
+            const m=new THREE.Mesh(new THREE.PlaneGeometry(w,h),mat);
+            m.position.set((Math.random()-0.5)*680,58+Math.random()*28,(Math.random()-0.5)*680);
+            m.userData.speed=0.45+Math.random()*0.75;
             scene.add(m); clouds.push(m);
         }
+
+        // ── stars ──
+        // main star field
+        const starGeo=new THREE.BufferGeometry();
+        const starPos=new Float32Array(700*3);
+        for(let i=0;i<700;i++){const th=Math.random()*Math.PI*2,ph=Math.random()*Math.PI*0.48,r=440+Math.random()*30;starPos[i*3]=r*Math.sin(ph)*Math.cos(th);starPos[i*3+1]=r*Math.cos(ph);starPos[i*3+2]=r*Math.sin(ph)*Math.sin(th);}
+        starGeo.setAttribute('position',new THREE.BufferAttribute(starPos,3));
+        const starMesh=new THREE.Points(starGeo,new THREE.PointsMaterial({color:0xe8f0ff,size:1.6,sizeAttenuation:false,transparent:true,opacity:1.0}));
+        scene.add(starMesh);
+        // bright accent stars
+        const starGeo2=new THREE.BufferGeometry();
+        const starPos2=new Float32Array(60*3);
+        for(let i=0;i<60;i++){const th=Math.random()*Math.PI*2,ph=Math.random()*Math.PI*0.4,r=438;starPos2[i*3]=r*Math.sin(ph)*Math.cos(th);starPos2[i*3+1]=r*Math.cos(ph);starPos2[i*3+2]=r*Math.sin(ph)*Math.sin(th);}
+        starGeo2.setAttribute('position',new THREE.BufferAttribute(starPos2,3));
+        const starMesh2=new THREE.Points(starGeo2,new THREE.PointsMaterial({color:0xffffff,size:2.8,sizeAttenuation:false,transparent:true,opacity:0.95}));
+        scene.add(starMesh2);
+
+        // ── moon ──
+        const mCv=document.createElement('canvas');mCv.width=mCv.height=128;
+        const mG=mCv.getContext('2d'),mGr=mG.createRadialGradient(64,64,0,64,64,62);
+        mGr.addColorStop(0,'rgba(255,255,240,1)');mGr.addColorStop(0.45,'rgba(240,248,220,0.8)');mGr.addColorStop(0.75,'rgba(200,225,240,0.3)');mGr.addColorStop(1,'rgba(180,210,240,0)');
+        mG.fillStyle=mGr;mG.fillRect(0,0,128,128);
+        const moonSprite=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(mCv),transparent:true,depthWrite:false}));
+        moonSprite.scale.set(32,32,1); moonSprite.position.set(-180,220,-320); scene.add(moonSprite);
+        const moonLight=new THREE.PointLight(0x7090b8,0.45,1000); moonLight.position.set(-180,220,-320); scene.add(moonLight);
 
         // ── camera rig ──
         const UP = new THREE.Vector3(0,1,0);
@@ -638,6 +808,7 @@ export default function WebGLGallery() {
         const railFill = railFillRef.current;
         const rose = roseRef.current;
         const readout = readoutRef.current;
+        const hudTitleEl = canvas.parentElement.querySelector('.hud-title');
 
         function updateCamera(dt) {
             const scrollProgress = scrollProgressRef.current;
@@ -647,10 +818,17 @@ export default function WebGLGallery() {
             const ahead = trailCurve.getPointAt(Math.min(0.999, t+0.035));
             const back = p.clone().sub(ahead).setY(0).normalize();
             camPos.copy(p).addScaledVector(back,38);
-            camPos.y = Math.max(p.y,terrainHeight(camPos.x,camPos.z))+24+heightOffset;
+            const camLift = window.innerWidth < 768 ? 9 : 24;
+            const terrainUnderCam = Math.min(terrainHeight(camPos.x,camPos.z), p.y+12);
+            camPos.y = Math.max(p.y,terrainUnderCam)+camLift+heightOffset;
             camTarget.copy(ahead).setY(ahead.y+2);
             const fwd = ahead.clone().sub(p).setY(0).normalize();
-            camTarget.addScaledVector(new THREE.Vector3().crossVectors(fwd,UP).normalize(),26);
+            if (window.innerWidth < 768) {
+                // mobile: lower camera + aim slightly forward so flag labels appear above card
+                camTarget.y -= 3;
+            } else {
+                camTarget.addScaledVector(new THREE.Vector3().crossVectors(fwd,UP).normalize(),26);
+            }
             const k = 1-Math.pow(0.001,dt);
             smoothPos.lerp(camPos,k); smoothTarget.lerp(camTarget,k);
             camera.position.copy(smoothPos);
@@ -670,17 +848,20 @@ export default function WebGLGallery() {
                 projV.copy(m.world).setY(m.world.y+4); projV.project(camera);
                 const behind=projV.z>1;
                 let vis=0;
-                if(delta>-0.035&&delta<0.09) vis=delta<=0.02?1:Math.max(0,1-(delta-0.02)/0.07);
+                const isLast=m.isLast;
+                if(delta>-0.035&&(isLast?delta<0.7:delta<0.09)) vis=delta<=0.02?1:isLast?1:Math.max(0,1-(delta-0.02)/0.07);
                 const on=vis>0;
                 m.card.classList.toggle('on',on);
                 if(!on){m.card._cx=undefined;m.card.style.opacity='';return;}
                 m.card.style.opacity=vis;
                 if(!behind){
                     const W=m.card.offsetWidth||560, cardH=m.card.offsetHeight||460;
-                    const zoneL=window.innerWidth*0.44, zoneR=window.innerWidth-60;
-                    const zoneT=90, zoneB=window.innerHeight-90;
+                    const mobileV=window.innerWidth<768;
+                    const zoneL=mobileV?16:window.innerWidth*0.44, zoneR=window.innerWidth-(mobileV?16:60);
+                    const zoneT=mobileV?76:90, zoneB=window.innerHeight-(mobileV?60:90);
                     const tx=zoneL+(zoneR-zoneL-W)/2;
-                    const ty=Math.max(zoneT,zoneT+(zoneB-zoneT-cardH)/2);
+                    // mobile: pin card to bottom so the 3D trail stays visible above it
+                    const ty=mobileV?Math.max(zoneT,zoneB-cardH):Math.max(zoneT,zoneT+(zoneB-zoneT-cardH)/2);
                     if(m.card._cx===undefined){m.card._cx=tx;m.card._cy=ty;}
                     const ck=1-Math.pow(0.02,dt);
                     m.card._cx+=(tx-m.card._cx)*ck; m.card._cy+=(ty-m.card._cy)*ck;
@@ -703,7 +884,13 @@ export default function WebGLGallery() {
                 ring2.scale.setScalar(1+t2*2.6); ringMat2.opacity=(1-t2)*0.8;
                 sprite.material.opacity=0.5+Math.sin(el*2+i*1.3)*0.15;
             });
-            clouds.forEach(c=>{c.position.x+=c.userData.speed*dt*2.4; if(c.position.x>350)c.position.x=-350;});
+            skyDome.position.copy(camera.position);
+            starMesh.position.copy(camera.position);
+            starMesh2.position.copy(camera.position);
+            clouds.forEach(c=>{
+                c.position.x+=c.userData.speed*dt*2.4; if(c.position.x>360)c.position.x=-360;
+                c.lookAt(camera.position.x,c.position.y,camera.position.z);
+            });
             updateCamera(dt);
             renderer.render(scene,camera);
             rafHandle=requestAnimationFrame(frame);
@@ -714,6 +901,7 @@ export default function WebGLGallery() {
             camera.aspect=window.innerWidth/window.innerHeight;
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth,window.innerHeight);
+            markers.forEach(m=>{ if(m.card){ sizeCard(m.card,m.loc); m.card._cx=undefined; } });
         };
         window.addEventListener('resize',onResize);
 
@@ -760,6 +948,7 @@ export default function WebGLGallery() {
 
     return (
         <section ref={sectionRef} style={{ position: "relative", height: "800vh" }}>
+            <script src="https://fast.wistia.com/player.php" async></script>
             <style dangerouslySetInnerHTML={{ __html: WGL_CSS }} />
             <div id="wgl-root" style={{ position: "sticky", top: 0, height: "100vh", width: "100%" }}>
                 <canvas ref={canvasRef} style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }} />

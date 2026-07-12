@@ -33,9 +33,10 @@ export default function Tools() {
     return (
         <TrailBand
             id="tools"
-            frame={160}
+            src="/site%20assets/workshop-production.png"
             scrim="left"
-            tint="rgba(6,12,16,0.66)"
+            tint="rgba(6,12,16,0.55)"
+            bgPosition="right center"
             minH="min-h-screen"
         >
             {/* cyan ambient glow */}
@@ -43,7 +44,7 @@ export default function Tools() {
 
             <div className="relative mx-auto flex min-h-screen max-w-7xl flex-col justify-center px-6 py-28 sm:px-8">
                 <Reveal>
-                    <TrailHeading n="03" label="AI & Innovation" color="var(--cp-ai)" />
+                    <TrailHeading n="03" label="Yuval's Workshop" color="var(--cp-ai)" />
                 </Reveal>
                 <Reveal delay={0.08}>
                     <p className="mt-5 max-w-xl text-[15px] leading-relaxed text-white/60">

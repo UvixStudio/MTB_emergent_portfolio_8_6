@@ -3,6 +3,7 @@ import { Mail, Linkedin, MapPin, Music2, ArrowRight } from "lucide-react";
 import { PROFILE } from "@/data/content";
 import { Reveal } from "@/components/Primitives";
 import TrailBand from "@/components/TrailBand";
+import ChamferButton from "@/components/ChamferButton";
 
 function Campfire() {
     return (
@@ -47,9 +48,11 @@ export default function Connect() {
     return (
         <TrailBand
             id="connect"
-            frame={241}
+            src="/site%20assets/night-camp-footer.png"
             scrim="bottom"
-            tint="rgba(8,6,4,0.72)"
+            tint="linear-gradient(to bottom, rgba(8,6,4,0.97) 0%, rgba(8,6,4,0.82) 36%, rgba(8,6,4,0.16) 72%, rgba(8,6,4,0.42) 100%)"
+            bgPosition="center bottom"
+            bgScale={1.15}
             minH="min-h-screen"
         >
             <div className="pointer-events-none absolute left-1/2 top-1/2 h-[440px] w-[440px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-brand/10 blur-[130px]" />
@@ -80,26 +83,23 @@ export default function Connect() {
 
                 <Reveal delay={0.28}>
                     <div className="mt-9 flex flex-wrap justify-center gap-4">
-                        <button
+                        <ChamferButton
+                            variant="solid"
                             onClick={openContact}
                             data-testid="connect-lets-talk"
-                            className="group inline-flex items-center gap-2 rounded-full bg-brand px-8 py-4 font-display text-sm font-bold uppercase tracking-wide text-ink transition-all hover:-translate-y-0.5 hover:shadow-[0_12px_36px_-10px_rgba(250,204,21,0.7)]"
                         >
                             Let&apos;s Talk
-                            <ArrowRight
-                                size={17}
-                                strokeWidth={2.5}
-                                className="transition-transform group-hover:translate-x-1"
-                            />
-                        </button>
-                        <a
+                            <ArrowRight size={17} strokeWidth={2.5} />
+                        </ChamferButton>
+                        <ChamferButton
+                            as="a"
+                            variant="ghost"
                             href={`mailto:${PROFILE.email}`}
                             data-testid="connect-email"
-                            className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-black/30 px-8 py-4 font-display text-sm font-bold uppercase tracking-wide text-white backdrop-blur-sm transition-all hover:-translate-y-0.5 hover:border-brand hover:text-brand"
                         >
                             <Mail size={17} strokeWidth={2.5} />
                             {PROFILE.email}
-                        </a>
+                        </ChamferButton>
                     </div>
                 </Reveal>
 

@@ -342,3 +342,78 @@ html.has-custom-cursor [contenteditable="true"] {
     }
     html { scroll-behavior: auto; }
 }
+
+/* ============================================================
+   Hallmark · redesign (skeleton pass) · genre: atmospheric
+   macrostructure: preserved (scroll-ride) · theme: existing brand DNA
+   scope: continuity layer — atmosphere, terrain dividers, zone warmth
+   ============================================================ */
+
+/* --- Ambient fog bands (AmbientAtmosphere.jsx) --- */
+.atmo-fog {
+    position: absolute;
+    left: -20%;
+    width: 140%;
+    height: 22vh;
+    filter: blur(34px);
+    opacity: 0.05;
+    background: linear-gradient(
+        90deg,
+        transparent,
+        #cbd5e1 30%,
+        #e2e8f0 50%,
+        #cbd5e1 70%,
+        transparent
+    );
+    will-change: transform;
+}
+.atmo-fog-a { top: 24%; animation: fog-drift 46s ease-in-out infinite alternate; }
+.atmo-fog-b { top: 62%; opacity: 0.04; animation: fog-drift 64s ease-in-out infinite alternate-reverse; }
+
+@keyframes fog-drift {
+    from { transform: translateX(-5%); }
+    to   { transform: translateX(5%); }
+}
+
+/* --- Terrain divider (TerrainDivider.jsx) --- */
+.terrain-divider {
+    height: 30vh;
+    min-height: 240px;
+    /* melts out of the previous section and into the next: the near ridge
+       is filled with var(--ink), so the divider never reads as a black gap */
+    background: linear-gradient(
+        to bottom,
+        transparent,
+        rgba(6, 11, 19, 0.28) 45%,
+        rgba(14, 26, 43, 0.0) 100%
+    );
+}
+
+.td-waypoint {
+    position: relative;
+    width: 10px;
+    height: 10px;
+    border-radius: 9999px;
+    background: var(--td-accent, var(--brand));
+    box-shadow: 0 0 14px var(--td-accent, var(--brand));
+}
+.td-waypoint::after {
+    content: "";
+    position: absolute;
+    inset: -7px;
+    border-radius: 9999px;
+    border: 1px solid var(--td-accent, var(--brand));
+    opacity: 0.5;
+    animation: waypoint-ping 2.6s var(--ease-expo) infinite;
+}
+
+@keyframes waypoint-ping {
+    0%   { transform: scale(0.55); opacity: 0.7; }
+    70%  { transform: scale(1.6);  opacity: 0; }
+    100% { transform: scale(1.6);  opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .atmo-fog { animation: none !important; }
+    .td-waypoint::after { animation: none !important; opacity: 0.25; }
+}

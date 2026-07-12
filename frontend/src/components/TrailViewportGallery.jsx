@@ -232,6 +232,98 @@ function SpotlightCard({ project }) {
     );
 }
 
+function MobileSpotlightCard({ project }) {
+    const imageSrc = IMAGE_BY_SLUG[project.slug] || project.thumb || "/projects/coderz.jpeg";
+    const chips = (project.metrics || []).map((item) => item.l).slice(0, 3);
+
+    return (
+        <AnimatePresence mode="popLayout" initial={false}>
+            <motion.div
+                key={project.slug}
+                initial={{ opacity: 0, y: 20, filter: "blur(8px)" }}
+                animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+                exit={{ opacity: 0, y: -16, filter: "blur(8px)" }}
+                transition={{ duration: 0.38, ease: EASE }}
+                style={{ width: "100%", aspectRatio: "3/4" }}
+            >
+                <div
+                    style={{
+                        clipPath: chamferClip(18),
+                        background: GOLD_SOFT,
+                        padding: 1,
+                        width: "100%",
+                        height: "100%",
+                    }}
+                >
+                    <div
+                        style={{
+                            clipPath: chamferClip(17),
+                            background: "rgba(9,14,22,0.9)",
+                            height: "100%",
+                            width: "100%",
+                            position: "relative",
+                            overflow: "hidden",
+                        }}
+                    >
+                        <img src={imageSrc} alt={project.title} className="h-full w-full object-cover" />
+                        <div
+                            className="absolute inset-0"
+                            style={{
+                                background: "linear-gradient(to top, rgba(8,12,18,0.97) 0%, rgba(8,12,18,0.65) 32%, transparent 62%)",
+                            }}
+                        />
+                        <div className="absolute bottom-0 left-0 right-0 px-5 pb-6">
+                            <p className="text-[10px] font-bold uppercase tracking-[0.22em]" style={{ color: GOLD }}>
+                                {project.category}
+                            </p>
+                            <h3 className="mt-2 font-display text-[1.55rem] font-black leading-[1.02] text-white">{project.title}</h3>
+                            <p className="mt-1.5 text-[13px] leading-snug text-white/70">{project.role}</p>
+                            {chips.length > 0 && (
+                                <div className="mt-3 flex flex-wrap gap-2">
+                                    {chips.map((chip) => (
+                                        <span
+                                            key={chip}
+                                            className="rounded-full border px-2.5 py-0.5 text-[9px] font-medium text-white/55"
+                                            style={{ borderColor: "rgba(255,255,255,0.12)" }}
+                                        >
+                                            {chip}
+                                        </span>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            </motion.div>
+        </AnimatePresence>
+    );
+}
+
+function MobileProgress({ activeIdx, total, locations, onJump }) {
+    return (
+        <div className="mt-4 flex items-center gap-1.5">
+            {locations.map((_, i) => (
+                <button
+                    key={i}
+                    type="button"
+                    onClick={() => onJump(i)}
+                    className="h-1.5 rounded-full transition-all duration-300"
+                    style={{
+                        width: i === activeIdx ? 24 : 6,
+                        minWidth: i === activeIdx ? 24 : 6,
+                        background: i === activeIdx ? GOLD : "rgba(255,255,255,0.22)",
+                    }}
+                />
+            ))}
+            <span className="ml-auto font-display text-[11px]">
+                <span style={{ color: GOLD }}>{String(activeIdx + 1).padStart(2, "0")}</span>
+                <span className="text-white/24"> / </span>
+                <span className="text-white/40">{String(total).padStart(2, "0")}</span>
+            </span>
+        </div>
+    );
+}
+
 function ProgressStrip({ activeIndex, total, title }) {
     return (
         <ChamferFrame
@@ -357,6 +449,7 @@ export default function TrailViewportGallery() {
     const prevProject = activeIdx > 0 ? locations[activeIdx - 1] : null;
     const nextProject = activeIdx < locations.length - 1 ? locations[activeIdx + 1] : null;
     const routeProgress = Math.max(0.14, (activeIdx + 1.18) / (locations.length + 1.4));
+    const isMobile = viewport.width > 0 && viewport.width < 768;
 
     return (
         <section
@@ -375,7 +468,7 @@ export default function TrailViewportGallery() {
                         backgroundSize: "100% auto",
                         backgroundPositionX: "center",
                         backgroundPositionY: backgroundShift,
-                        filter: "grayscale(1) brightness(0.42)",
+                        filter: "brightness(0.58) saturate(0.85)",
                     }}
                 />
 
@@ -392,6 +485,32 @@ export default function TrailViewportGallery() {
 
                 <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(11,21,32,0.9)_0%,rgba(11,21,32,0.18)_16%,rgba(11,21,32,0.18)_84%,rgba(11,21,32,0.92)_100%)]" />
 
+                {isMobile ? (
+                    <div className="relative z-[2] flex h-full flex-col justify-center px-4 py-6">
+                        <div className="mb-5 text-left">
+                            <div className="flex items-center gap-2.5">
+                                <span className="text-[11px] font-black uppercase tracking-[0.18em]" style={{ color: "#55E59C" }}>
+                                    04
+                                </span>
+                                <span className="h-[5px] w-[5px] rounded-full" style={{ background: "#55E59C" }} />
+                                <h2 className="font-display text-[26px] font-black uppercase leading-none text-white">Project Ridge</h2>
+                            </div>
+                            <p className="mt-2.5 text-[12px] leading-relaxed text-white/48">
+                                Ride past the gallery on the mountain - a selection of projects where creativity, strategy and
+                                cutting-edge technology meet.
+                            </p>
+                        </div>
+
+                        <MobileSpotlightCard project={activeProject} />
+
+                        <MobileProgress
+                            activeIdx={activeIdx}
+                            total={locations.length}
+                            locations={locations}
+                            onJump={jumpToLocation}
+                        />
+                    </div>
+                ) : (
                 <div className="absolute inset-0 overflow-hidden">
                     <div
                         className="absolute top-0"
@@ -407,7 +526,7 @@ export default function TrailViewportGallery() {
                                     className="font-display font-black uppercase text-white"
                                     style={{ fontSize: 62, lineHeight: 0.94, whiteSpace: "nowrap", letterSpacing: 0 }}
                                 >
-                                    Selected Works
+                                    Project Ridge
                                 </h2>
                             </div>
                             <p className="mt-5 max-w-[690px] text-[15px] leading-[1.42] text-white/52">
@@ -482,6 +601,7 @@ export default function TrailViewportGallery() {
                         </motion.div>
                     </div>
                 </div>
+                )}
             </div>
         </section>
     );

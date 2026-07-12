@@ -68,10 +68,10 @@ export default function About() {
                 className="pointer-events-none absolute inset-0"
             >
                 <img
-                    src="/projects/_scene/mountain-wire.jpeg"
+                    src="/site%20assets/cliff-mtb-route.png"
                     alt=""
-                    className="h-full w-full object-cover opacity-[0.10]"
-                    style={{ objectPosition: "center 60%" }}
+                    className="h-full w-full object-cover opacity-[0.22]"
+                    style={{ objectPosition: "center 40%" }}
                 />
                 {/* vignette so center has breathing room and edges fade to ink */}
                 <div
@@ -138,7 +138,7 @@ export default function About() {
                 <Reveal>
                     <TrailHeading
                         n="01"
-                        label="About Me"
+                        label="Rider Profile"
                         color="var(--cp-about)"
                     />
                 </Reveal>
