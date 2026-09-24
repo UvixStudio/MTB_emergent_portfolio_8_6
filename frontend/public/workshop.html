@@ -230,7 +230,7 @@ async function loadTV(url,kind,fromFile=false){
 document.getElementById('tvFile').onchange=e=>{const f=e.target.files[0];if(f)loadTV(URL.createObjectURL(f),f.type.startsWith('video/')?'video':'image',true);};
 document.getElementById('tvLoad').onclick=()=>{const raw=document.getElementById('tvUrl').value.trim();if(!raw)return;let u;try{u=new URL(raw,location.href);if(!['http:','https:'].includes(u.protocol))throw Error();}catch{mediaStatus.textContent='יש להזין כתובת HTTP תקינה';return;}loadTV(u.href,/\.(mp4|webm)(?:[?#]|$)/i.test(u.href)?'video':'image');};
 document.getElementById('tvPlay').onclick=()=>{if(tvVideo){if(tvVideo.paused)tvVideo.play().catch(()=>mediaStatus.textContent='לא ניתן לנגן');else tvVideo.pause();}};
-document.getElementById('tvDemo').onclick=()=>loadTV('models/bone-bash-demo.png','image');
+document.getElementById('tvDemo').onclick=()=>loadTV('models/bone-bash-demo.webp','image');
 document.getElementById('toolsToggle').onclick=e=>{
   const open=document.body.classList.toggle('tools-open');e.target.setAttribute('aria-expanded',String(open));
 };
@@ -283,7 +283,7 @@ new GLTFLoader().load(MODEL, gltf => {
     }
   });
   scene.add(gltf.scene);
-  loadTV('models/bone-bash-demo.png','image');
+  loadTV('models/bone-bash-demo.webp','image');
   fetch(MODEL).then(r=>r.blob()).then(b=>{
     document.getElementById('stats').textContent =
       `${meshes} meshes · ${Math.round(tris).toLocaleString()} tris · ${(b.size/1024).toFixed(0)} kb`;
