@@ -1,0 +1,424 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex, nofollow" />
+<title>Yuval's Workshop — 3D Preview</title>
+<style>
+  :root { --cy:#00e5ff; }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:#070a11;overflow:hidden;
+            font-family:ui-monospace,"SF Mono",Menlo,monospace;color:#c8dced}
+  #app{position:fixed;inset:0}
+  .pane{position:fixed;z-index:10;background:rgba(7,11,18,.82);
+        border:1px solid rgba(0,229,255,.22);backdrop-filter:blur(10px);
+        padding:11px 13px;font-size:11px;letter-spacing:.09em;
+        clip-path:polygon(0 0,calc(100% - 10px) 0,100% 10px,100% 100%,10px 100%,0 calc(100% - 10px))}
+  #hud{left:14px;top:14px;line-height:1.85;text-transform:uppercase}
+  #hud b{color:var(--cy);font-weight:600}
+  #hud .dim{opacity:.5}
+  #ctl{right:14px;top:14px;width:246px}
+  #ctl{display:none;top:54px}
+  body.tools-open #ctl{display:block}
+  #toolsToggle{position:fixed;right:14px;top:14px;width:auto;z-index:12;margin:0;padding:8px 12px}
+  .row{display:flex;align-items:center;gap:7px;margin:5px 0}
+  .row span{flex:0 0 46px;opacity:.72;text-transform:uppercase;font-size:10px}
+  .row input[type=range]{flex:1;accent-color:var(--cy);height:3px}
+  .row .val{flex:0 0 40px;text-align:right;color:var(--cy);font-size:10.5px}
+  .sep{height:1px;background:rgba(255,255,255,.12);margin:9px 0}
+  select,button{width:100%;background:#0d1522;color:#cfe6f5;border:1px solid rgba(255,255,255,.16);
+                padding:5px 7px;font:11px ui-monospace,monospace;letter-spacing:.08em}
+  button{cursor:pointer;margin-top:7px;text-transform:uppercase}
+  button:hover{border-color:var(--cy);color:var(--cy)}
+  input[type=color]{width:100%;height:22px;border:1px solid rgba(255,255,255,.16);
+                    background:#0d1522;padding:1px;cursor:pointer}
+  #err{position:fixed;inset:auto 0 0 0;padding:12px;background:#3a0d12;color:#ffb4b4;
+       font-size:12px;display:none;z-index:20;white-space:pre-wrap}
+  #tvBar{left:50%;bottom:18px;transform:translateX(-50%);display:none;align-items:center;gap:10px;
+         flex-wrap:wrap;justify-content:center;max-width:calc(100vw - 28px)}
+  #tvBar.show{display:flex}
+  #tvBar button{width:auto;margin:0;min-width:86px;padding:7px 12px}
+  #tvBar label{display:flex;align-items:center;gap:8px;text-transform:uppercase;font-size:10px;opacity:.85}
+  #tvBar input[type=range]{width:96px;accent-color:var(--cy);height:3px}
+  #tvBar .sound.off{display:none}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<details id="mediaPanel" style="position:fixed;bottom:16px;left:16px;z-index:15;background:#0c1623ed;border:1px solid #284151;padding:12px;max-width:340px;color:#d5e7ef;font:13px sans-serif">
+<summary style="cursor:pointer">TV media · תמונה או וידאו</summary>
+<p><label>קובץ מהמחשב <input id="tvFile" type="file" accept="image/*,video/mp4,video/webm"></label></p>
+<input id="tvUrl" type="url" placeholder="קישור ישיר לתמונה / MP4 / WebM" style="width:100%;box-sizing:border-box">
+<button id="tvLoad">הצג במסך</button><button id="tvPlay">נגן / השהה וידאו</button>
+<button id="tvDemo">תמונת Bone Bash</button><button id="tvTeaser">Teaser video</button>
+<p id="mediaStatus" role="status" style="max-width:310px;line-height:1.5">בחירת קובץ היא לתצוגה מקומית בלבד.</p>
+</details>
+<button id="toolsToggle" type="button" aria-expanded="false">Lighting controls</button>
+
+<div class="pane" id="tvBar" role="group" aria-label="Screen video controls">
+  <button id="barPlay" type="button">Pause</button>
+  <button id="barMute" type="button" class="sound">Unmute</button>
+  <label class="sound">Volume <input id="barVol" type="range" min="0" max="1" step="0.01" value="0.8" aria-label="Volume"></label>
+</div>
+
+<div class="pane" id="hud">
+  <div><b>Yuval's Workshop</b> · stage 1</div>
+  <div class="dim">drag = orbit · scroll/pinch = zoom · 2-finger = pan</div>
+  <div class="dim" id="stats">loading…</div>
+</div>
+
+<div class="pane" id="ctl">
+  <div class="row"><span>Bloom</span><input id="s_bloom" type="range" min="0" max="1.5" step="0.01" value="0.18"><i class="val" id="v_bloom">0.18</i></div>
+  <div class="row"><span>Thresh</span><input id="s_thr" type="range" min="0" max="1.5" step="0.01" value="0.90"><i class="val" id="v_thr">0.90</i></div>
+  <div class="row"><span>Expo</span><input id="s_exp" type="range" min="0.2" max="2.5" step="0.01" value="0.74"><i class="val" id="v_exp">0.74</i></div>
+  <div class="row"><span>Env</span><input id="s_env" type="range" min="0" max="2" step="0.01" value="0.40"><i class="val" id="v_env">0.40</i></div>
+  <div class="row"><span>Key</span><input id="s_key" type="range" min="0" max="5" step="0.05" value="2.10"><i class="val" id="v_key">2.10</i></div>
+  <div class="row"><span>Ticker</span><input id="s_spd" type="range" min="-0.15" max="0.15" step="0.005" value="0.035"><i class="val" id="v_spd">0.035</i></div>
+
+  <div class="sep"></div>
+  <select id="matSel"></select>
+  <div class="row" style="margin-top:7px"><span>Color</span><input id="m_col" type="color" value="#000000"></div>
+  <div class="row"><span>Rough</span><input id="m_rgh" type="range" min="0" max="1" step="0.01" value="0.5"><i class="val" id="v_rgh">0.50</i></div>
+  <div class="row"><span>Metal</span><input id="m_met" type="range" min="0" max="1" step="0.01" value="0"><i class="val" id="v_met">0.00</i></div>
+  <div class="row"><span>Emis</span><input id="m_emi" type="range" min="0" max="8" step="0.05" value="0"><i class="val" id="v_emi">0.00</i></div>
+  <button id="save">💾 Save look → repo</button>
+  <button id="copy">Copy JSON to clipboard</button>
+</div>
+
+<div id="err"></div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+}}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls }   from 'three/addons/controls/OrbitControls.js';
+import { GLTFLoader }      from 'three/addons/loaders/GLTFLoader.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { EffectComposer }  from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass }      from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass }      from 'three/addons/postprocessing/OutputPass.js';
+
+const MODEL = 'models/workshop.glb?v=' + Date.now();
+const errBox = document.getElementById('err');
+const showErr = m => { errBox.style.display='block'; errBox.textContent = m; };
+addEventListener('error', e => showErr('ERROR: ' + e.message));
+if (location.protocol === 'file:')
+  showErr('Opened via file:// — the .glb cannot load.\nUse  http://localhost:3003/workshop.html');
+
+/* ---------- renderer ---------- */
+const renderer = new THREE.WebGLRenderer({ antialias:true, powerPreference:'high-performance' });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 0.74;      // baked from Yuval's saved look
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+document.getElementById('app').appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x070a11);
+scene.fog = new THREE.Fog(0x070a11, 24, 52);
+
+const pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+scene.environmentIntensity = 0.40;
+
+const camera = new THREE.PerspectiveCamera(34, innerWidth/innerHeight, 0.1, 400);
+camera.position.set(13.2, 10.2, 13.2);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 1.3, 0);
+controls.enableDamping = true; controls.dampingFactor = 0.07;
+controls.minDistance = 3; controls.maxDistance = 55;
+controls.maxPolarAngle = Math.PI * 0.495;
+controls.update();
+
+/* ---------- lights ---------- */
+scene.add(new THREE.HemisphereLight(0x24405c, 0x04070c, 0.30));
+const key = new THREE.DirectionalLight(0xfff3e2, 2.1);
+key.position.set(7, 11, 6); key.castShadow = true;
+key.shadow.mapSize.set(2048,2048);
+key.shadow.normalBias = 0.025;
+key.shadow.radius = 2;
+key.shadow.camera.near = 1; key.shadow.camera.far = 45;
+Object.assign(key.shadow.camera, {left:-7,right:7,top:7,bottom:-7});
+key.shadow.bias = -0.0006; scene.add(key);
+const fill = new THREE.DirectionalLight(0x7aa8ff, 0.45); fill.position.set(-9,5,4); scene.add(fill);
+const rim  = new THREE.DirectionalLight(0x2fd0ff, 0.85); rim.position.set(-4,6,-9);  scene.add(rim);
+
+/* ---------- scrolling LED ticker (ported from v3) ----------
+   Tools only, no prose — grouped: production / generative / 3D / dev. */
+const TICKER_TEXT = [
+  'DAVINCI RESOLVE', 'AFTER EFFECTS', 'PHOTOSHOP', 'FIGMA', 'TOPAZ AI',
+  'FREEPIK', 'MAGNIFIC', 'FLUX', 'VEO', 'KLING', 'GPT-4O', 'GEMINI',
+  'UNITY WEBGL', 'PLAYCANVAS', 'SPLINE 3D', 'MIXAMO', 'SUBSTANCE',
+  'HUNYUAN3D', 'TRELLIS', 'TRIPO', 'RODIN', 'MESHY',
+  'CLAUDE CODE', 'CODEX', 'OLLAMA', 'REPLICATE', 'FAL',
+].join('  ·  ') + '  ·  ';
+
+
+function tickerTexture(){
+  // width scales with the string so glyph density stays constant
+  const FONT = 46, H = 96;
+  const probe = document.createElement('canvas').getContext('2d');
+  probe.font = `bold ${FONT}px ui-monospace, monospace`;
+  const W = Math.ceil(probe.measureText(TICKER_TEXT).width);
+  const c = document.createElement('canvas'); c.width = W; c.height = H;
+  const x = c.getContext('2d');
+  x.fillStyle = '#1a212c'; x.fillRect(0,0,W,H);      // dark blue-grey backing
+  x.font = `bold ${FONT}px ui-monospace, monospace`;
+  x.fillStyle = '#5fe6ff'; x.textBaseline = 'middle';
+  x.fillText(TICKER_TEXT, 0, H/2 + 2);
+  x.fillStyle = 'rgba(26,33,44,.88)';               // dot-matrix mask (matches backing)
+  for (let i=0;i<W;i+=6) x.fillRect(i+4,0,2,H);
+  for (let j=0;j<H;j+=6) x.fillRect(0,j+4,W,2);
+  const t = new THREE.CanvasTexture(c);
+  t.flipY = false;                     // glTF UV convention (CanvasTexture defaults to true)
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.colorSpace = THREE.SRGBColorSpace;
+  // The UV strip spans ~17 m across BOTH walls but is only 0.30 m tall.
+  // Repeat so texture pixels stay square -> glyphs never squash, whatever
+  // the tool list length.
+  const STRIP_LEN = 17.05, STRIP_H = 0.30;
+  t.repeat.set(W / (H * (STRIP_LEN / STRIP_H)), 1);
+  return t;
+}
+const tickerTex = tickerTexture();
+const scrolling = [];
+const movingBelts=[];
+function dotDisplayTexture(){
+  const mask=document.createElement('canvas');mask.width=640;mask.height=12;
+  const g=mask.getContext('2d');g.font='bold 9px monospace';g.fillStyle='#fff';g.textBaseline='middle';
+  const phrase='YUVAL WORKSHOP / INNOVATION / BLENDER / THREE.JS / DESIGN + CODE / ';
+  const phraseWidth=g.measureText(phrase).width;
+  for(let start=0;start<640;start+=phraseWidth)g.fillText(phrase,start,6);
+  const data=g.getImageData(0,0,640,12).data;
+  const c=document.createElement('canvas');c.width=2560;c.height=48;
+  const ctx=c.getContext('2d');ctx.fillStyle='#071019';ctx.fillRect(0,0,2560,48);ctx.fillStyle='#5fe6ff';
+  for(let y=0;y<12;y++)for(let x=0;x<640;x++)if(data[(y*640+x)*4+3]>100){ctx.beginPath();ctx.arc(x*4+2,y*4+2,1.45,0,Math.PI*2);ctx.fill();}
+  const t=new THREE.CanvasTexture(c);t.flipY=false;t.wrapS=THREE.RepeatWrapping;t.colorSpace=THREE.SRGBColorSpace;
+  t.repeat.set((8.35/.24)/(2560/48),1);t.anisotropy=renderer.capabilities.getMaxAnisotropy();return t;
+}
+function beltTexture(){
+  const c=document.createElement('canvas');c.width=128;c.height=32;const g=c.getContext('2d');
+  g.fillStyle='#343b43';g.fillRect(0,0,128,32);g.fillStyle='#12191f';g.fillRect(0,0,9,32);g.fillStyle='#505962';g.fillRect(9,0,3,32);
+  const t=new THREE.CanvasTexture(c);t.flipY=false;t.wrapS=THREE.RepeatWrapping;t.colorSpace=THREE.SRGBColorSpace;return t;
+}
+
+/* ---------- load ---------- */
+const MATS = new Map();
+let tvMesh=null,tvTexture=null,tvVideo=null,tvBlob=null,mediaRequest=0;
+const mediaStatus=document.getElementById('mediaStatus');
+const bar=document.getElementById('tvBar'),barPlay=document.getElementById('barPlay'),
+      barMute=document.getElementById('barMute'),barVol=document.getElementById('barVol');
+let wantMuted=true,wantVolume=+barVol.value;   // browsers only autoplay muted video
+const hasAudio=v=>v.mozHasAudio!==undefined?v.mozHasAudio:(v.audioTracks?v.audioTracks.length>0:
+  (v.webkitAudioDecodedByteCount!==undefined&&v.currentTime>.3?v.webkitAudioDecodedByteCount>0:true));
+function syncBar(){
+ if(!tvVideo){bar.classList.remove('show');return;}
+ bar.classList.add('show');
+ barPlay.textContent=tvVideo.paused?'Play':'Pause';
+ barMute.textContent=(tvVideo.muted||tvVideo.volume===0)?'Unmute':'Mute';
+ barVol.value=tvVideo.muted?0:tvVideo.volume;
+ bar.querySelectorAll('.sound').forEach(e=>e.classList.toggle('off',!hasAudio(tvVideo)));
+}
+barPlay.onclick=()=>{if(!tvVideo)return;tvVideo.paused?tvVideo.play().catch(()=>{}):tvVideo.pause();};
+barMute.onclick=()=>{if(!tvVideo)return;
+ if(tvVideo.muted||tvVideo.volume===0){wantMuted=false;if(wantVolume===0)wantVolume=.8;tvVideo.muted=false;tvVideo.volume=wantVolume;}
+ else{wantMuted=true;tvVideo.muted=true;}
+ syncBar();};
+barVol.oninput=()=>{if(!tvVideo)return;wantVolume=+barVol.value;wantMuted=wantVolume===0;
+ tvVideo.volume=wantVolume;tvVideo.muted=wantMuted;syncBar();};
+function clearTV(){
+ if(tvVideo){tvVideo.pause();tvVideo.removeAttribute('src');tvVideo.load();tvVideo=null;}
+ syncBar();
+ if(tvTexture){tvTexture.dispose();tvTexture=null;}
+ if(tvBlob){URL.revokeObjectURL(tvBlob);tvBlob=null;}
+}
+function applyTVTexture(tex,w,h){
+ tex.flipY=false;tex.colorSpace=THREE.SRGBColorSpace;tvTexture=tex;
+ tvMesh.material.map=tex;tvMesh.material.needsUpdate=true;
+ const a=w/h,screenAspect=16/9;
+ tvMesh.scale.z=Math.min(1,a/screenAspect);tvMesh.scale.y=Math.min(1,screenAspect/a);
+}
+async function loadTV(url,kind,fromFile=false){
+ if(!tvMesh){mediaStatus.textContent='המודל עדיין נטען';return;}
+ if(/(?:youtube\.com|youtu\.be)/i.test(url)){mediaStatus.textContent='YouTube דורש נגן iframe נפרד. כאן יש להזין קישור ישיר לקובץ וידאו, או לבחור קובץ.';return;}
+ const request=++mediaRequest;clearTV();if(fromFile)tvBlob=url;
+ mediaStatus.textContent='טוען מדיה…';
+ if(kind==='video'){
+  const v=document.createElement('video');tvVideo=v;v.crossOrigin='anonymous';v.muted=true;v.volume=wantVolume;v.loop=true;v.playsInline=true;v.preload='auto';
+  ['play','pause','volumechange','playing'].forEach(ev=>v.addEventListener(ev,()=>{if(v===tvVideo)syncBar();}));
+  v.onloadeddata=async()=>{if(request!==mediaRequest)return;applyTVTexture(new THREE.VideoTexture(v),v.videoWidth,v.videoHeight);
+   if(!wantMuted){v.muted=false;}
+   try{await v.play();}catch{v.muted=true;try{await v.play();}catch{}}   // autoplay policy: fall back to muted
+   mediaStatus.textContent='וידאו במסך · לולאה';syncBar();};
+  v.onerror=()=>{if(request===mediaRequest)mediaStatus.textContent='לא ניתן לטעון וידאו. בדוק פורמט והרשאת CORS של הקישור.';};v.src=url;
+ }else{
+  try{const tex=await new THREE.TextureLoader().loadAsync(url);if(request!==mediaRequest){tex.dispose();return;}applyTVTexture(tex,tex.image.width,tex.image.height);mediaStatus.textContent='התמונה מוצגת ללא מתיחה או חיתוך';}
+  catch{if(request===mediaRequest)mediaStatus.textContent='טעינת התמונה נכשלה. נסה קובץ מקומי או קישור עם הרשאת CORS.';}
+ }
+}
+document.getElementById('tvFile').onchange=e=>{const f=e.target.files[0];if(f)loadTV(URL.createObjectURL(f),f.type.startsWith('video/')?'video':'image',true);};
+document.getElementById('tvLoad').onclick=()=>{const raw=document.getElementById('tvUrl').value.trim();if(!raw)return;let u;try{u=new URL(raw,location.href);if(!['http:','https:'].includes(u.protocol))throw Error();}catch{mediaStatus.textContent='יש להזין כתובת HTTP תקינה';return;}loadTV(u.href,/\.(mp4|webm)(?:[?#]|$)/i.test(u.href)?'video':'image');};
+document.getElementById('tvPlay').onclick=()=>{if(tvVideo){if(tvVideo.paused)tvVideo.play().catch(()=>mediaStatus.textContent='לא ניתן לנגן');else tvVideo.pause();}};
+document.getElementById('tvDemo').onclick=()=>loadTV('models/bone-bash-demo.webp','image');
+document.getElementById('tvTeaser').onclick=()=>loadTV('models/pres-teaser.mp4','video');
+document.getElementById('toolsToggle').onclick=e=>{
+  const open=document.body.classList.toggle('tools-open');e.target.setAttribute('aria-expanded',String(open));
+};
+// Shared soft contact decal: no additional shadow-casting lights or downloaded texture.
+const contactCanvas=document.createElement('canvas');contactCanvas.width=contactCanvas.height=128;
+const contactCtx=contactCanvas.getContext('2d');
+const contactGradient=contactCtx.createRadialGradient(64,64,8,64,64,62);
+contactGradient.addColorStop(0,'rgba(0,0,0,.42)');contactGradient.addColorStop(.5,'rgba(0,0,0,.22)');contactGradient.addColorStop(1,'rgba(0,0,0,0)');
+contactCtx.fillStyle=contactGradient;contactCtx.fillRect(0,0,128,128);
+const contactMat=new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(contactCanvas),transparent:true,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-1});
+const contactGeo=new THREE.PlaneGeometry(2.3,2.3);
+for(const [x,z] of [[-1.594,2.498],[2.498,-1.594],[2.498,2.498]]){
+  const p=new THREE.Mesh(contactGeo,contactMat);p.rotation.x=-Math.PI/2;p.position.set(x,.146,z);scene.add(p);
+}
+new GLTFLoader().load(MODEL, gltf => {
+  let tris = 0, meshes = 0;
+  gltf.scene.traverse(o => {
+    if (!o.isMesh) return;
+    if(/^TV[ _](heading|project|descriptor|CTA)/i.test(o.name))o.visible=false;
+    meshes++;
+    const g = o.geometry;
+    tris += (g.index ? g.index.count : g.attributes.position.count) / 3;
+    o.castShadow = true; o.receiveShadow = true;
+    const m = o.material;
+    if(m && m.name==='TV_Media_16x9'){
+      const center=new THREE.Vector3();g.computeBoundingBox();g.boundingBox.getCenter(center);
+      g.translate(-center.x,-center.y,-center.z);o.position.add(center);
+      const backing=new THREE.Mesh(g.clone(),new THREE.MeshBasicMaterial({color:0x000000,side:THREE.DoubleSide}));
+      backing.position.copy(o.position);backing.position.x-=.002;o.parent.add(backing);
+      o.material=new THREE.MeshBasicMaterial({color:0xffffff,side:THREE.DoubleSide,toneMapped:false});tvMesh=o;
+    }
+    if (m) {
+      MATS.set(m.name || o.name, m);
+      m.envMapIntensity = .65;
+      if(m.name.startsWith('DotTicker_')){
+        const t=dotDisplayTexture();if(m.name.endsWith('_R'))t.offset.x=.45;
+        m.map=t;m.emissiveMap=t;m.color.set(0xffffff);m.emissive.set(0xffffff);m.emissiveIntensity=.9;m.side=THREE.DoubleSide;m.needsUpdate=true;scrolling.push(t);
+      }
+      if(m.name.startsWith('Animated_Belt_')){
+        const t=beltTexture();m.map=t;m.color.set(0xffffff);m.roughness=.86;m.side=THREE.DoubleSide;m.needsUpdate=true;movingBelts.push(t);
+      }
+      const lit = m.emissive && (m.emissive.r+m.emissive.g+m.emissive.b) > 0.02;
+      if (lit) o.castShadow = false;
+      if ((m.name||'').startsWith('MAT_ticker')) {       // wire the running LED text
+        m.map = tickerTex; m.emissiveMap = tickerTex;
+        m.emissive.set(0xffffff); m.emissiveIntensity = 2.2;
+        m.toneMapped = true; m.needsUpdate = true;
+        scrolling.push(tickerTex);
+      }
+    }
+  });
+  scene.add(gltf.scene);
+  loadTV('models/pres-teaser.mp4','video');
+  fetch(MODEL).then(r=>r.blob()).then(b=>{
+    document.getElementById('stats').textContent =
+      `${meshes} meshes · ${Math.round(tris).toLocaleString()} tris · ${(b.size/1024).toFixed(0)} kb`;
+  });
+  buildMatUI();
+}, undefined, e => showErr('GLB load failed: ' + e.message + '\n' + MODEL));
+
+/* ---------- post ---------- */
+const composer = new EffectComposer(renderer);
+composer.addPass(new RenderPass(scene, camera));
+const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.18, 0.75, 0.90);
+composer.addPass(bloom);
+composer.addPass(new OutputPass());
+
+/* ---------- ui ---------- */
+const bind = (id, vid, fn, fmt = v => v.toFixed(2)) => {
+  const s = document.getElementById(id), v = document.getElementById(vid);
+  const go = () => { const n = +s.value; v.textContent = fmt(n); fn(n); };
+  s.addEventListener('input', go); go();
+};
+bind('s_bloom','v_bloom', v => bloom.strength = v);
+bind('s_thr','v_thr',     v => bloom.threshold = v);
+bind('s_exp','v_exp',     v => renderer.toneMappingExposure = v);
+bind('s_env','v_env',     v => {scene.environmentIntensity = v;MATS.forEach(m=>m.envMapIntensity=v);});
+bind('s_key','v_key',     v => key.intensity = v);
+let tickerSpeed = 0.035;
+bind('s_spd','v_spd', v => tickerSpeed = v, v => v.toFixed(3));
+
+const sel = document.getElementById('matSel');
+const mc = document.getElementById('m_col'), mr = document.getElementById('m_rgh'),
+      mm = document.getElementById('m_met'), me = document.getElementById('m_emi');
+function syncMat(){
+  const m = MATS.get(sel.value); if (!m) return;
+  mc.value = '#' + m.color.getHexString();
+  mr.value = m.roughness ?? 0.5; document.getElementById('v_rgh').textContent = (+mr.value).toFixed(2);
+  mm.value = m.metalness ?? 0;   document.getElementById('v_met').textContent = (+mm.value).toFixed(2);
+  me.value = m.emissiveIntensity ?? 0; document.getElementById('v_emi').textContent = (+me.value).toFixed(2);
+}
+function buildMatUI(){
+  sel.innerHTML = '';
+  [...MATS.keys()].sort().forEach(n => sel.add(new Option(n, n)));
+  sel.onchange = syncMat; syncMat();
+}
+mc.oninput = e => { MATS.get(sel.value).color.set(e.target.value); };
+mr.oninput = e => { MATS.get(sel.value).roughness = +e.target.value; document.getElementById('v_rgh').textContent=(+e.target.value).toFixed(2); };
+mm.oninput = e => { MATS.get(sel.value).metalness = +e.target.value; document.getElementById('v_met').textContent=(+e.target.value).toFixed(2); };
+me.oninput = e => { const m = MATS.get(sel.value); m.emissiveIntensity = +e.target.value;
+                    if (m.emissive.getHex()===0) m.emissive.set(m.color);
+                    document.getElementById('v_emi').textContent=(+e.target.value).toFixed(2); };
+
+function snapshot(){
+  const out = { post:{ bloom:+bloom.strength.toFixed(2), threshold:+bloom.threshold.toFixed(2),
+                       exposure:+renderer.toneMappingExposure.toFixed(2),
+                       env:+scene.environmentIntensity.toFixed(2), key:+key.intensity.toFixed(2),
+                       tickerSpeed:+tickerSpeed.toFixed(3) },
+                camera:{ pos:camera.position.toArray().map(v=>+v.toFixed(2)),
+                         target:controls.target.toArray().map(v=>+v.toFixed(2)) },
+                materials:{} };
+  MATS.forEach((m,n) => out.materials[n] = {
+    color:'#'+m.color.getHexString(), roughness:+(m.roughness??0).toFixed(2),
+    metalness:+(m.metalness??0).toFixed(2), emissive:+(m.emissiveIntensity??0).toFixed(2) });
+  return out;
+}
+const flash = (btn, txt, restore) => { btn.textContent = txt;
+  setTimeout(()=>btn.textContent = restore, 1600); };
+
+document.getElementById('save').onclick = e => {
+  const b = e.target;
+  fetch('/save', { method:'POST', headers:{'Content-Type':'application/json'},
+                   body: JSON.stringify(snapshot(), null, 2) })
+    .then(r => r.ok ? flash(b,'saved ✓ 3d/look.json','💾 Save look → repo')
+                    : flash(b,'save failed','💾 Save look → repo'))
+    .catch(() => flash(b,'server has no /save — restart serve.py','💾 Save look → repo'));
+};
+
+document.getElementById('copy').onclick = e => {
+  const s = JSON.stringify(snapshot(), null, 2);
+  navigator.clipboard.writeText(s)
+    .then(() => flash(e.target, 'copied ✓', 'Copy JSON to clipboard'));
+  console.log(s);
+};
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth/innerHeight; camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight); composer.setSize(innerWidth, innerHeight);
+});
+
+const clock = new THREE.Clock();
+(function loop(){
+  requestAnimationFrame(loop);
+  const dt = clock.getDelta();
+  scrolling.forEach(t => t.offset.x -= dt * tickerSpeed);   // running LED text
+  movingBelts.forEach(t => t.offset.x -= dt * .8);
+  controls.update(); composer.render();
+})();
+</script>
+</body>
+</html>
