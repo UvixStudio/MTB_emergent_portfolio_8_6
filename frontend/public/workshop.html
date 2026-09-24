@@ -19,7 +19,13 @@
   #hud b{color:var(--cy);font-weight:600}
   #hud .dim{opacity:.5}
   #ctl{right:14px;top:14px;width:246px}
-  #ctl{display:none;top:54px}
+  #ctl{display:none;top:54px;max-height:calc(100vh - 68px);overflow-y:auto}
+  .product-settings{font:11px ui-monospace,monospace;letter-spacing:0;line-height:1.45}
+  .product-settings h3{font-size:12px;color:var(--cy);margin:2px 0 8px}
+  .product-settings label{display:block;margin:7px 0}
+  .product-settings output{float:left;color:var(--cy)}
+  .product-settings input[type=range]{display:block;width:100%;accent-color:var(--cy)}
+  .product-settings p{margin:7px 0}
   body.tools-open #ctl{display:block}
   #toolsToggle{position:fixed;right:14px;top:14px;width:auto;z-index:12;margin:0;padding:8px 12px}
   .row{display:flex;align-items:center;gap:7px;margin:5px 0}
@@ -104,6 +110,7 @@ import { EffectComposer }  from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass }      from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass }      from 'three/addons/postprocessing/OutputPass.js';
+import { createWorkshopProducts } from './workshop-products.js';
 
 const MODEL = 'models/workshop.glb?v=' + Date.now();
 const errBox = document.getElementById('err');
@@ -214,6 +221,7 @@ function beltTexture(){
 
 /* ---------- load ---------- */
 const MATS = new Map();
+let productSystem = null;
 let tvMesh=null,tvTexture=null,tvVideo=null,tvBlob=null,mediaRequest=0;
 const mediaStatus=document.getElementById('mediaStatus');
 const bar=document.getElementById('tvBar'),barPlay=document.getElementById('barPlay'),
@@ -323,6 +331,12 @@ new GLTFLoader().load(MODEL, gltf => {
     }
   });
   scene.add(gltf.scene);
+  try {
+    productSystem = createWorkshopProducts({scene, model:gltf.scene, camera, panel:document.getElementById('ctl')});
+  } catch (error) {
+    console.error('Product preview failed', error);
+    showErr('Product preview failed: ' + error.message);
+  }
   loadTV('models/pres-teaser.mp4','video');
   fetch(MODEL).then(r=>r.blob()).then(b=>{
     document.getElementById('stats').textContent =
@@ -417,6 +431,7 @@ const clock = new THREE.Clock();
   const dt = clock.getDelta();
   scrolling.forEach(t => t.offset.x -= dt * tickerSpeed);   // running LED text
   movingBelts.forEach(t => t.offset.x -= dt * .8);
+  productSystem?.update(dt);
   controls.update(); composer.render();
 })();
 </script>
