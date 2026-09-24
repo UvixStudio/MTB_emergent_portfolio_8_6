@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex, nofollow" />
 <title>Yuval's Workshop — 3D Preview</title>
 <style>
   :root { --cy:#00e5ff; }
@@ -34,6 +35,13 @@
                     background:#0d1522;padding:1px;cursor:pointer}
   #err{position:fixed;inset:auto 0 0 0;padding:12px;background:#3a0d12;color:#ffb4b4;
        font-size:12px;display:none;z-index:20;white-space:pre-wrap}
+  #tvBar{left:50%;bottom:18px;transform:translateX(-50%);display:none;align-items:center;gap:10px;
+         flex-wrap:wrap;justify-content:center;max-width:calc(100vw - 28px)}
+  #tvBar.show{display:flex}
+  #tvBar button{width:auto;margin:0;min-width:86px;padding:7px 12px}
+  #tvBar label{display:flex;align-items:center;gap:8px;text-transform:uppercase;font-size:10px;opacity:.85}
+  #tvBar input[type=range]{width:96px;accent-color:var(--cy);height:3px}
+  #tvBar .sound.off{display:none}
 </style>
 </head>
 <body>
@@ -43,10 +51,16 @@
 <p><label>קובץ מהמחשב <input id="tvFile" type="file" accept="image/*,video/mp4,video/webm"></label></p>
 <input id="tvUrl" type="url" placeholder="קישור ישיר לתמונה / MP4 / WebM" style="width:100%;box-sizing:border-box">
 <button id="tvLoad">הצג במסך</button><button id="tvPlay">נגן / השהה וידאו</button>
-<button id="tvDemo">תמונת Bone Bash</button>
+<button id="tvDemo">תמונת Bone Bash</button><button id="tvTeaser">Teaser video</button>
 <p id="mediaStatus" role="status" style="max-width:310px;line-height:1.5">בחירת קובץ היא לתצוגה מקומית בלבד.</p>
 </details>
 <button id="toolsToggle" type="button" aria-expanded="false">Lighting controls</button>
+
+<div class="pane" id="tvBar" role="group" aria-label="Screen video controls">
+  <button id="barPlay" type="button">Pause</button>
+  <button id="barMute" type="button" class="sound">Unmute</button>
+  <label class="sound">Volume <input id="barVol" type="range" min="0" max="1" step="0.01" value="0.8" aria-label="Volume"></label>
+</div>
 
 <div class="pane" id="hud">
   <div><b>Yuval's Workshop</b> · stage 1</div>
@@ -202,8 +216,29 @@ function beltTexture(){
 const MATS = new Map();
 let tvMesh=null,tvTexture=null,tvVideo=null,tvBlob=null,mediaRequest=0;
 const mediaStatus=document.getElementById('mediaStatus');
+const bar=document.getElementById('tvBar'),barPlay=document.getElementById('barPlay'),
+      barMute=document.getElementById('barMute'),barVol=document.getElementById('barVol');
+let wantMuted=true,wantVolume=+barVol.value;   // browsers only autoplay muted video
+const hasAudio=v=>v.mozHasAudio!==undefined?v.mozHasAudio:(v.audioTracks?v.audioTracks.length>0:
+  (v.webkitAudioDecodedByteCount!==undefined&&v.currentTime>.3?v.webkitAudioDecodedByteCount>0:true));
+function syncBar(){
+ if(!tvVideo){bar.classList.remove('show');return;}
+ bar.classList.add('show');
+ barPlay.textContent=tvVideo.paused?'Play':'Pause';
+ barMute.textContent=(tvVideo.muted||tvVideo.volume===0)?'Unmute':'Mute';
+ barVol.value=tvVideo.muted?0:tvVideo.volume;
+ bar.querySelectorAll('.sound').forEach(e=>e.classList.toggle('off',!hasAudio(tvVideo)));
+}
+barPlay.onclick=()=>{if(!tvVideo)return;tvVideo.paused?tvVideo.play().catch(()=>{}):tvVideo.pause();};
+barMute.onclick=()=>{if(!tvVideo)return;
+ if(tvVideo.muted||tvVideo.volume===0){wantMuted=false;if(wantVolume===0)wantVolume=.8;tvVideo.muted=false;tvVideo.volume=wantVolume;}
+ else{wantMuted=true;tvVideo.muted=true;}
+ syncBar();};
+barVol.oninput=()=>{if(!tvVideo)return;wantVolume=+barVol.value;wantMuted=wantVolume===0;
+ tvVideo.volume=wantVolume;tvVideo.muted=wantMuted;syncBar();};
 function clearTV(){
  if(tvVideo){tvVideo.pause();tvVideo.removeAttribute('src');tvVideo.load();tvVideo=null;}
+ syncBar();
  if(tvTexture){tvTexture.dispose();tvTexture=null;}
  if(tvBlob){URL.revokeObjectURL(tvBlob);tvBlob=null;}
 }
@@ -219,8 +254,12 @@ async function loadTV(url,kind,fromFile=false){
  const request=++mediaRequest;clearTV();if(fromFile)tvBlob=url;
  mediaStatus.textContent='טוען מדיה…';
  if(kind==='video'){
-  const v=document.createElement('video');tvVideo=v;v.crossOrigin='anonymous';v.muted=true;v.loop=true;v.playsInline=true;v.preload='metadata';
-  v.onloadeddata=async()=>{if(request!==mediaRequest)return;applyTVTexture(new THREE.VideoTexture(v),v.videoWidth,v.videoHeight);try{await v.play();mediaStatus.textContent='וידאו במסך · ללא קול · לולאה';}catch{mediaStatus.textContent='לחץ נגן להפעלת הווידאו';}};
+  const v=document.createElement('video');tvVideo=v;v.crossOrigin='anonymous';v.muted=true;v.volume=wantVolume;v.loop=true;v.playsInline=true;v.preload='auto';
+  ['play','pause','volumechange','playing'].forEach(ev=>v.addEventListener(ev,()=>{if(v===tvVideo)syncBar();}));
+  v.onloadeddata=async()=>{if(request!==mediaRequest)return;applyTVTexture(new THREE.VideoTexture(v),v.videoWidth,v.videoHeight);
+   if(!wantMuted){v.muted=false;}
+   try{await v.play();}catch{v.muted=true;try{await v.play();}catch{}}   // autoplay policy: fall back to muted
+   mediaStatus.textContent='וידאו במסך · לולאה';syncBar();};
   v.onerror=()=>{if(request===mediaRequest)mediaStatus.textContent='לא ניתן לטעון וידאו. בדוק פורמט והרשאת CORS של הקישור.';};v.src=url;
  }else{
   try{const tex=await new THREE.TextureLoader().loadAsync(url);if(request!==mediaRequest){tex.dispose();return;}applyTVTexture(tex,tex.image.width,tex.image.height);mediaStatus.textContent='התמונה מוצגת ללא מתיחה או חיתוך';}
@@ -231,6 +270,7 @@ document.getElementById('tvFile').onchange=e=>{const f=e.target.files[0];if(f)lo
 document.getElementById('tvLoad').onclick=()=>{const raw=document.getElementById('tvUrl').value.trim();if(!raw)return;let u;try{u=new URL(raw,location.href);if(!['http:','https:'].includes(u.protocol))throw Error();}catch{mediaStatus.textContent='יש להזין כתובת HTTP תקינה';return;}loadTV(u.href,/\.(mp4|webm)(?:[?#]|$)/i.test(u.href)?'video':'image');};
 document.getElementById('tvPlay').onclick=()=>{if(tvVideo){if(tvVideo.paused)tvVideo.play().catch(()=>mediaStatus.textContent='לא ניתן לנגן');else tvVideo.pause();}};
 document.getElementById('tvDemo').onclick=()=>loadTV('models/bone-bash-demo.webp','image');
+document.getElementById('tvTeaser').onclick=()=>loadTV('models/pres-teaser.mp4','video');
 document.getElementById('toolsToggle').onclick=e=>{
   const open=document.body.classList.toggle('tools-open');e.target.setAttribute('aria-expanded',String(open));
 };
@@ -283,7 +323,7 @@ new GLTFLoader().load(MODEL, gltf => {
     }
   });
   scene.add(gltf.scene);
-  loadTV('models/bone-bash-demo.webp','image');
+  loadTV('models/pres-teaser.mp4','video');
   fetch(MODEL).then(r=>r.blob()).then(b=>{
     document.getElementById('stats').textContent =
       `${meshes} meshes · ${Math.round(tris).toLocaleString()} tris · ${(b.size/1024).toFixed(0)} kb`;
