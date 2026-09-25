@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { createGlassDiamond } from './workshop-product-form.mjs';
 
 // Lightweight preview system: shared geometry/textures and a fixed reusable pool.
 export function createWorkshopProducts({ scene, model, camera, panel }) {
@@ -75,16 +76,10 @@ export function createWorkshopProducts({ scene, model, camera, panel }) {
         },undefined,error=>console.warn('Could not load product icon',filename,error));
       });
     }).catch(error=>console.warn('Using built-in product icons:',error));
-  function roundedSquare(w,r){
-    const s=new THREE.Shape(), a=-w/2,b=w/2;
-    s.moveTo(a+r,a);s.lineTo(b-r,a);s.quadraticCurveTo(b,a,b,a+r);
-    s.lineTo(b,b-r);s.quadraticCurveTo(b,b,b-r,b);s.lineTo(a+r,b);s.quadraticCurveTo(a,b,a,b-r);
-    s.lineTo(a,a+r);s.quadraticCurveTo(a,a,a+r,a);return s;
-  }
-  const shape=roundedSquare(.30,.047);
-  const diamondGeo=ownGeo(new THREE.ExtrudeGeometry(shape,{depth:.065,bevelEnabled:true,bevelSize:.008,bevelThickness:.008,bevelSegments:2,curveSegments:5,steps:1}));
-  diamondGeo.translate(0,0,-.0325);
-  const outlineGeo=ownGeo(new THREE.BufferGeometry().setFromPoints(shape.getPoints(32).map(p=>new THREE.Vector3(p.x,p.y,.041))));
+  const glassForm=createGlassDiamond(THREE);
+  const diamondGeo=ownGeo(glassForm.geometry);
+  const outlineGeo=ownGeo(glassForm.frontOutline);
+  const rearOutlineGeo=ownGeo(glassForm.backOutline);
   const iconGeo=ownGeo(new THREE.PlaneGeometry(.235,.235));
   const baseGeo=ownGeo(new THREE.CylinderGeometry(.275,.29,.075,6));
   const rimGeo=ownGeo(new THREE.CylinderGeometry(.283,.283,.014,6));
@@ -95,23 +90,30 @@ export function createWorkshopProducts({ scene, model, camera, panel }) {
   const baseMat=ownMat(new THREE.MeshStandardMaterial({color:0x172632,metalness:.7,roughness:.33,transparent:true}));
   const topMat=ownMat(new THREE.MeshStandardMaterial({color:0x0b1922,metalness:.5,roughness:.4,transparent:true}));
   const cyanMat=ownMat(new THREE.MeshBasicMaterial({color:0x32def0,toneMapped:false,transparent:true}));
-  const glassMat=ownMat(new THREE.MeshStandardMaterial({color:0x239ab1,metalness:.36,roughness:.19,emissive:0x033c4b,emissiveIntensity:.25,transparent:true,opacity:.44,depthWrite:false,side:THREE.DoubleSide}));
+  const glassMat=ownMat(new THREE.MeshStandardMaterial({color:0x239ab1,metalness:.26,roughness:.13,emissive:0x063e4d,emissiveIntensity:.37,transparent:true,opacity:.57,depthWrite:false,side:THREE.DoubleSide}));
+  const glassSideMat=ownMat(new THREE.MeshStandardMaterial({color:0x174d66,metalness:.42,roughness:.25,emissive:0x12475a,emissiveIntensity:.38,transparent:true,opacity:.92,depthWrite:false,side:THREE.DoubleSide}));
+  const ribMat=ownMat(new THREE.MeshBasicMaterial({color:0x72e5f4,transparent:true,opacity:.68,toneMapped:false}));
+  const ribGeo=ownGeo(new THREE.CylinderGeometry(.008,.008,.18,6));
   const edgeMat=ownMat(new THREE.LineBasicMaterial({color:0x71edff,transparent:true,opacity:.8,toneMapped:false,depthWrite:false}));
   const beamMat=ownMat(new THREE.MeshBasicMaterial({color:0x18dbea,transparent:true,opacity:.045,side:THREE.DoubleSide,depthWrite:false,blending:THREE.AdditiveBlending}));
   function makeProduct(i){
     const root=new THREE.Group();root.name=`Carrier_${i+1}`;group.add(root);
     const materials=[];
     const material=src=>{const m=src.clone();materials.push({m,opacity:m.opacity});return m;};
-    const add=(geo,mat,y,parent=root)=>{const mesh=new THREE.Mesh(geo,material(mat));mesh.position.y=y;parent.add(mesh);return mesh;};
+    const add=(geo,mat,y,parent=root)=>{const mesh=new THREE.Mesh(geo,Array.isArray(mat)?mat.map(material):material(mat));mesh.position.y=y;parent.add(mesh);return mesh;};
     add(baseGeo,baseMat,.0375); add(rimGeo,cyanMat,.028); add(topGeo,topMat,.079);add(socketGeo,topMat,.089);
     const core=add(coreGeo,cyanMat,.100);core.rotation.x=-Math.PI/2;
     const beam=add(coneGeo,beamMat,0);
     const floating=new THREE.Group();root.add(floating);
-    const diamond=add(diamondGeo,glassMat,0,floating);diamond.rotation.z=Math.PI/4;
+    const diamond=add(diamondGeo,[glassMat,glassSideMat],0,floating);diamond.rotation.z=Math.PI/4;
+    for(const x of [-.125,.125])for(const y of [-.125,.125]){
+      const rib=new THREE.Mesh(ribGeo,material(ribMat));
+      rib.position.set(x,y,0);rib.rotation.x=Math.PI/2;diamond.add(rib);
+    }
     const outline=new THREE.LineLoop(outlineGeo,material(edgeMat));outline.rotation.z=Math.PI/4;floating.add(outline);
-    const rearOutline=new THREE.LineLoop(outlineGeo,material(edgeMat));rearOutline.rotation.z=Math.PI/4;rearOutline.position.z=-.082;floating.add(rearOutline);
+    const rearOutline=new THREE.LineLoop(rearOutlineGeo,material(edgeMat));rearOutline.rotation.z=Math.PI/4;floating.add(rearOutline);
     const glyphMat=new THREE.MeshBasicMaterial({map:iconTextures[i%4],transparent:true,depthWrite:false,toneMapped:false});
-    const glyph=new THREE.Mesh(iconGeo,glyphMat);glyph.position.z=.047;floating.add(glyph);materials.push({m:glyphMat,opacity:1});
+    const glyph=new THREE.Mesh(iconGeo,glyphMat);glyph.position.z=.094;floating.add(glyph);materials.push({m:glyphMat,opacity:1});
     iconMaterials.push({material:glyphMat,index:i});
     const groundGlow=new THREE.Mesh(ownGeo(new THREE.PlaneGeometry(.36,.36)),material(new THREE.MeshBasicMaterial({map:glowTexture,transparent:true,opacity:.28,depthWrite:false,blending:THREE.AdditiveBlending})));
     groundGlow.rotation.x=-Math.PI/2;groundGlow.position.y=.101;root.add(groundGlow);
@@ -193,9 +195,11 @@ export function createWorkshopProducts({ scene, model, camera, panel }) {
       const envelope=Math.min(rise,fall);
       const flutter=(Math.sin(elapsed*p.frequency+p.phase)*.7+Math.sin(elapsed*p.frequency*1.61+p.phase*2)*.3)*settings.bob*envelope;
       const gap=.035+settings.lift*envelope+flutter;
-      // .225 is a conservative bounding radius of the rounded, extruded tile.
-      p.floating.position.y=.10+.225+Math.max(.02,gap);
+      // Lift lowers close to either gate; the whole thicker tile clears the opening.
+      p.floating.position.y=.10+.24+Math.max(.02,gap);
       p.floating.quaternion.copy(camera.quaternion);
+      p.floating.rotateY(.27+Math.sin(elapsed*.58+p.phase)*.045);
+      p.floating.rotateX(-.045);
       p.beam.scale.y=Math.max(.02,gap);p.beam.position.y=.10+gap/2;
       const visibility=smooth(0,.22,distance)*(1-smooth(length-.22,length,distance));
       p.materials.forEach(({m,opacity})=>{m.opacity=opacity*visibility;});

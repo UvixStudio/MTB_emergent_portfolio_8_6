@@ -111,6 +111,7 @@ import { RenderPass }      from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass }      from 'three/addons/postprocessing/OutputPass.js';
 import { createWorkshopProducts } from './workshop-products.js';
+import { createWorkshopProps } from './workshop-props.mjs';
 
 const MODEL = 'models/workshop.glb?v=' + Date.now();
 const errBox = document.getElementById('err');
@@ -222,6 +223,7 @@ function beltTexture(){
 /* ---------- load ---------- */
 const MATS = new Map();
 let productSystem = null;
+let workshopProps = null;
 let tvMesh=null,tvTexture=null,tvVideo=null,tvBlob=null,mediaRequest=0;
 const mediaStatus=document.getElementById('mediaStatus');
 const bar=document.getElementById('tvBar'),barPlay=document.getElementById('barPlay'),
@@ -332,6 +334,12 @@ new GLTFLoader().load(MODEL, gltf => {
   });
   scene.add(gltf.scene);
   try {
+    workshopProps = createWorkshopProps({THREE,scene,model:gltf.scene});
+  } catch (error) {
+    console.error('Workshop prop preview failed',error);
+    showErr('Workshop prop preview failed: '+error.message);
+  }
+  try {
     productSystem = createWorkshopProducts({scene, model:gltf.scene, camera, panel:document.getElementById('ctl')});
   } catch (error) {
     console.error('Product preview failed', error);
@@ -432,6 +440,7 @@ const clock = new THREE.Clock();
   scrolling.forEach(t => t.offset.x -= dt * tickerSpeed);   // running LED text
   movingBelts.forEach(t => t.offset.x -= dt * .8);
   productSystem?.update(dt);
+  workshopProps?.userData.update?.(dt);
   controls.update(); composer.render();
 })();
 </script>
