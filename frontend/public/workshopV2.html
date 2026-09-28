@@ -54,6 +54,35 @@
   #tvFocus{position:fixed;left:-9999px;top:0;width:1px;height:1px;overflow:hidden}
   #tvFocus:focus-visible{left:16px;top:16px;width:auto;height:auto;padding:8px 12px;z-index:30;background:#03090f;color:#4fe6ff;border:1px solid #4fe6ff}
   #tvFocus svg{display:none}
+  /* Onboarding hints: small ribbon-style tips that appear when relevant and leave once the action is done. */
+  /* Deliberately NOT the ribbon language: rounded frosted-glass bubble, thin cyan hairline, no amber,
+     plus a small caret pointing at whatever the tip is about. */
+  .hint{position:fixed;left:0;top:0;z-index:13;display:flex;align-items:center;gap:8px;pointer-events:none;opacity:0;
+        transition:opacity .4s ease, translate .4s ease;translate:0 6px;
+        font:600 13px/1.2 Ruda,ui-sans-serif,sans-serif;letter-spacing:.02em;color:rgba(230,251,255,.92);white-space:nowrap;
+        padding:8px 14px 8px 11px;border-radius:999px;
+        background:rgba(0,6,12,.5);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);
+        border:1px solid rgba(79,230,255,.55);box-shadow:0 0 18px rgba(79,230,255,.12)}
+  .hint.show{opacity:1;translate:0 0}
+  .hint .tag{color:#4fe6ff;font-size:14px;line-height:1;opacity:.9}
+  .hint .txt b{color:#4fe6ff;font-weight:700}
+  .hint.point::after{content:"";position:absolute;left:50%;bottom:-6px;width:10px;height:10px;margin-left:-5px;
+        background:rgba(0,6,12,.5);border-right:1px solid rgba(79,230,255,.55);border-bottom:1px solid rgba(79,230,255,.55);
+        transform:rotate(45deg);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
+  /* Bouncing down-pointing triangle that hops from product to product during the "pick a project" tip. */
+  .hint-ring{position:fixed;left:0;top:0;z-index:12;width:0;height:0;margin-left:-13px;pointer-events:none;opacity:0;
+        border-left:13px solid transparent;border-right:13px solid transparent;border-top:19px solid #ffb21f;
+        filter:drop-shadow(0 0 7px rgba(255,178,31,.9));transition:opacity .3s}
+  /* Yellow halo pulsing on the floor under the pointed-at product (sized/positioned from JS). */
+  .hint-ring.show{opacity:1}
+  .hint-ring i{display:none}
+  .hint-bob{animation:hintBob .9s ease-in-out infinite}
+  @keyframes hintBob{0%,100%{margin-top:-8px}50%{margin-top:0}}
+  #hintsReplay{position:fixed;left:16px;bottom:16px;z-index:13;width:34px;height:38px;border:0;padding:0;cursor:pointer;
+        background:#4fe6ff;clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%);opacity:.55;transition:opacity .2s,background .2s;
+        font:800 16px Ruda,sans-serif;color:#050b10}
+  #hintsReplay:hover,#hintsReplay:focus-visible{opacity:1;background:#ffb21f}
+  @media (prefers-reduced-motion: reduce){.hint{transition:opacity .2s;translate:0 0}.hint-ring.show{animation:none}}
   /* Clean view by default; Ctrl+0 toggles the dev UI. */
   body:not(.ui-on) .pane, body:not(.ui-on) #mediaPanel, body:not(.ui-on) #toolsToggle{display:none!important}
 </style>
@@ -61,6 +90,9 @@
 <body>
 <div id="app"></div>
 <button id="tvFocus" type="button" aria-label="Watch full screen">TV · full screen</button>
+<div class="hint" id="hint" role="status" aria-live="polite"><span class="tag" id="hintTag"></span><span class="txt" id="hintTxt"></span></div>
+<div class="hint-ring" id="hintRing"></div>
+<button id="hintsReplay" type="button" aria-label="Show tips again" title="Show tips again">?</button>
 <details id="mediaPanel" style="position:fixed;bottom:16px;left:16px;z-index:15;background:#0c1623ed;border:1px solid #284151;padding:12px;max-width:340px;color:#d5e7ef;font:13px sans-serif">
 <summary style="cursor:pointer">TV media · תמונה או וידאו</summary>
 <p><label>קובץ מהמחשב <input id="tvFile" type="file" accept="image/*,video/mp4,video/webm"></label></p>
@@ -122,7 +154,7 @@ import { EffectComposer }  from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass }      from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass }      from 'three/addons/postprocessing/OutputPass.js';
-import { createWorkshopProducts } from './workshop-products-v2.js?v=20260929d';
+import { createWorkshopProducts } from './workshop-products-v2.js?v=20260929g';
 import { createWorkshopProps } from './workshop-props-v2.mjs?v=20260928k';
 
 const MODEL = 'models/workshop.glb?v=' + Date.now();
@@ -176,7 +208,7 @@ const INTRO = {
   t: -1,                       // -1 = waiting for the model, then 0..1
 };
 function startIntro(){ INTRO.t = 0; controls.enabled = false; }
-function stopIntro(){ if (INTRO.t < 0 || INTRO.t >= 1) return; INTRO.t = 1; controls.enabled = true; }
+function stopIntro(){ if (INTRO.t < 0 || INTRO.t >= 1) return; INTRO.t = 1; controls.enabled = true; startHints?.(); }
 // Any user input takes over immediately.
 ['pointerdown','wheel','touchstart'].forEach(ev => addEventListener(ev, stopIntro, { passive: true }));
 /* ---------- camera readout (Ctrl+0 UI): live pose + copy-to-clipboard for handing a view over ---------- */
@@ -213,7 +245,7 @@ function updateIntro(dt){
   const k = INTRO.t < .5 ? 4*INTRO.t**3 : 1 - (-2*INTRO.t + 2)**3 / 2;   // easeInOutCubic
   camera.position.lerpVectors(INTRO.fromPos, INTRO.toPos, k);
   controls.target.lerpVectors(INTRO.fromTarget, INTRO.toTarget, k);
-  if (INTRO.t >= 1) { controls.enabled = true; startDrift(); }
+  if (INTRO.t >= 1) { controls.enabled = true; startDrift(); startHints(); }
 }
 
 /* ---------- idle drift: the camera stays put and slowly "looks around" the room ---------- */
@@ -286,7 +318,7 @@ function updateFocusClip(){
 }
 function enterFocus(){
   if (focusMode || !tvBacking) return;
-  focusMode = true; document.body.classList.add('tv-focus'); tvFocusBtn.setAttribute('aria-label', 'Exit full screen');
+  focusMode = true; document.body.classList.add('tv-focus'); completeHint('screen'); tvFocusBtn.setAttribute('aria-label', 'Exit full screen');
   setFocusClip(true);
   const v = tvFocusView(); flyTo(v.pos, v.target, 1.4);
   // The click is a user gesture, so the browser allows sound now.
@@ -295,6 +327,7 @@ function enterFocus(){
 function exitFocus(){
   if (!focusMode) return;
   focusMode = false; document.body.classList.remove('tv-focus'); tvFocusBtn.setAttribute('aria-label', 'Watch full screen');
+  if (tvVideo) { wantMuted = true; soundBlocked = false; tvVideo.muted = true; syncBar(); }   // back to the room = muted
   flyTo(INTRO.toPos, INTRO.toTarget, 1.4, () => { setFocusClip(false); controls.enabled = true; startDrift(); });
 }
 tvFocusBtn.addEventListener('click', e => { e.stopPropagation(); focusMode ? exitFocus() : enterFocus(); });
@@ -309,8 +342,8 @@ addEventListener('click', e => {
   if (ui === tvBtn) { focusMode ? exitFocus() : enterFocus(); return; }
   if (ui === soundBtn) { toggleSound(); return; }
   if (ui === playBtn) { togglePlay(); return; }
-  if (ui === arrowPrev) { stepProject(-1); return; }
-  if (ui === arrowNext) { stepProject(1); return; }
+  if (ui === arrowPrev) { stepProject(-1); completeHint('switch'); return; }
+  if (ui === arrowNext) { stepProject(1); completeHint('switch'); return; }
   if (!focusMode && productSystem?.isHalted()) return;           // a product is under the pointer: its own click wins
   const ray = new THREE.Raycaster(); ray.setFromCamera(new THREE.Vector2(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1), camera);
   if (!ray.intersectObject(tvBacking, false).length) return;
@@ -549,9 +582,95 @@ function stepProject(dir){
 }
 addEventListener('keydown', e => {
   if (!focusMode) return;
-  if (e.key === 'ArrowRight') { e.preventDefault(); stepProject(1); }
-  if (e.key === 'ArrowLeft') { e.preventDefault(); stepProject(-1); }
+  if (e.key === 'ArrowRight') { e.preventDefault(); stepProject(1); completeHint('switch'); }
+  if (e.key === 'ArrowLeft') { e.preventDefault(); stepProject(-1); completeHint('switch'); }
 });
+
+/* ---------- onboarding hints: one contextual tip at a time, each leaves once its action is done ---------- */
+// Order matters; a tip only shows when its situation applies (e.g. 'switch' only inside full screen).
+// Seen once per browser (localStorage); the "?" hexagon replays them.
+const TOUCH = matchMedia('(pointer: coarse)').matches;
+const HINTS = [
+  { id: 'look',   tag: '⟲', html: TOUCH ? '<b>Swipe</b> to look around · <b>Pinch</b> to zoom' : '<b>Drag</b> to look around · <b>Scroll</b> to zoom', timeout: 6,
+    when: () => !focusMode },
+  { id: 'pick',   tag: '↓', html: TOUCH ? '<b>Tap a project</b> on the belt' : '<b>Pick a project</b> on the belt', when: () => !focusMode },
+  { id: 'screen', tag: '⛶', html: '<b>Watch it</b> full screen', when: () => !focusMode && !!tvVideo },
+  { id: 'switch', tag: '‹ ›', html: TOUCH ? '<b>Switch projects</b> · tap ⛶ to go back' : '<b>Switch projects</b> · <b>Esc</b> to go back', timeout: 5,
+    when: () => focusMode && focusUi > .9 },
+];
+const HINT_KEY = 'workshopHintsSeen.v1';
+const hintEl = document.getElementById('hint'), hintTag = document.getElementById('hintTag'), hintTxt = document.getElementById('hintTxt'), hintRing = document.getElementById('hintRing');
+const hintsDone = new Set();
+let hintsOn = false, hintShown = null, hintAge = 0, hintAnchor = null, hintHome = null, hintHop = 0;
+try { if (localStorage.getItem(HINT_KEY)) HINTS.forEach(h => hintsDone.add(h.id)); } catch {}
+function startHints(){ hintsOn = true; }
+function completeHint(id){
+  if (hintsDone.has(id)) return;
+  hintsDone.add(id);
+  if (HINTS.every(h => hintsDone.has(h.id))) { try { localStorage.setItem(HINT_KEY, '1'); } catch {} }
+}
+function replayHints(){ hintsDone.clear(); hintShown = null; hintsOn = true; try { localStorage.removeItem(HINT_KEY); } catch {} }
+document.getElementById('hintsReplay').addEventListener('click', replayHints);
+// Any real orbit gesture completes the "look around" tip.
+controls.addEventListener('start', () => { if (INTRO.t >= 1) completeHint('look'); });
+// Tips simply fade in (no decode effect, so they don't read as product ribbons).
+function showHintText(h){ hintTag.textContent = h.tag; hintTxt.innerHTML = h.html; }
+const _hintV = new THREE.Vector3();
+function toScreen(v){ _hintV.copy(v).project(camera); return { x: (_hintV.x * .5 + .5) * innerWidth, y: (-_hintV.y * .5 + .5) * innerHeight, ok: _hintV.z < 1 && Math.abs(_hintV.x) < .95 && Math.abs(_hintV.y) < .95 }; }
+function updateHints(dt){
+  // First pending tip that fits the current situation (so 'switch' can still appear if a visitor jumps ahead).
+  const active = hintsOn && camTween.t >= 1 ? HINTS.find(x => !hintsDone.has(x.id) && x.when()) || null : null;
+  if (active !== hintShown) {
+    hintShown = active; hintAge = 0; hintAnchor = null; hintHome = null; hintHop = 0;
+    if (active) showHintText(active);
+  }
+  hintEl.classList.toggle('show', !!active);
+  // Set the triangle's visibility once per frame (toggling off/on around a layout read restarts its fade).
+  hintRing.classList.toggle('show', !!active && active.id === 'pick');
+  // The yellow halo lives in 3D, under the carrier's hexagon (see workshop-products-v2 setBeacon).
+  productSystem?.setBeacon(active && active.id === 'pick' && hintAnchor ? hintAnchor.root : null);
+  if (!active) return;
+  hintAge += Math.min(dt, .5);
+  if (active.timeout && hintAge > active.timeout) { completeHint(active.id); return; }
+  let x = innerWidth / 2, y = innerHeight - 40, place = 'above';
+  if (active.id === 'pick') {
+    // The bubble stays put on the belt, just below the products; a bouncing triangle hops from product to product
+    // above their icons every ~2.4 s. Only products in the middle 60% of the view qualify (not ones at the arches).
+    const central = s => s.ok && s.x > innerWidth * .2 && s.x < innerWidth * .8;
+    const list = (productSystem?.visibleCarriers() || [])
+      .map(c => ({ c, s: toScreen(c.root.getWorldPosition(new THREE.Vector3())) })).filter(e => central(e.s));
+    if (!hintHome) {   // fixed point on the belt (world space), measured once: ignores belt motion, follows the camera
+      if (!list.length) { hintEl.classList.remove('show'); return; }
+      hintHome = new THREE.Vector3();
+      list.forEach(e => hintHome.add(e.c.root.getWorldPosition(new THREE.Vector3())));
+      hintHome.divideScalar(list.length);
+    }
+    const home = toScreen(hintHome);
+    x = home.x; y = home.y + 46 + hintEl.offsetHeight; place = 'center';
+    hintHop += Math.min(dt, .5);
+    if (!hintAnchor || !list.some(e => e.c.root === hintAnchor.root) || hintHop > 2.4) {
+      hintHop = 0;
+      const others = list.filter(e => !hintAnchor || e.c.root !== hintAnchor.root);
+      const pool = others.length ? others : list;
+      hintAnchor = pool.length ? pool[Math.floor(Math.random() * pool.length)].c : null;
+    }
+    if (hintAnchor) {
+      const base = hintAnchor.root.getWorldPosition(new THREE.Vector3());
+      const tip = toScreen(base.setY(base.y + .12 + hintAnchor.iconHeight + .04));
+      hintRing.classList.add('hint-bob'); hintRing.style.transform = `translate(${tip.x}px,${tip.y - 18}px)`;
+    }
+  } else if (active.id === 'screen') {
+    const s = toScreen(tvBtn.getWorldPosition(new THREE.Vector3())); x = s.x; y = s.y - 26;
+  } else if (active.id === 'switch') {
+    const s = toScreen(infoRibbon.getWorldPosition(new THREE.Vector3())); x = s.x; y = s.y - 34;
+  } else { place = 'center'; }
+  // Anchored tips get a caret pointing down at their target; the free-floating one doesn't.
+  const pointing = place !== 'center';
+  hintEl.classList.toggle('point', pointing);
+  const w = hintEl.offsetWidth, hgt = hintEl.offsetHeight;
+  x = Math.min(innerWidth - w / 2 - 12, Math.max(w / 2 + 12, x));
+  hintEl.style.transform = `translate(${x - w / 2}px, ${y - hgt - (pointing ? 10 : 0)}px)`;
+}
 function pulseTvButton(){ if (!matchMedia('(prefers-reduced-motion: reduce)').matches) tvBtnPulse = 4.4; }
 
 /* ---------- lights ---------- */
@@ -637,7 +756,9 @@ const bar=document.getElementById('tvBar'),barPlay=document.getElementById('barP
       barMute=document.getElementById('barMute'),barVol=document.getElementById('barVol');
 // Videos start with sound. Browsers block unmuted autoplay until the visitor first interacts with the page,
 // so loadTV falls back to muted and the first click / key press anywhere turns the sound on.
-let wantMuted=false,wantVolume=+barVol.value,soundBlocked=false;
+// Sound policy: the scene plays muted by default. Sound comes on only when the visitor unmutes (speaker button)
+// or enters full screen; leaving full screen mutes again. (unlockSound only matters if a browser blocked an unmute.)
+let wantMuted=true,wantVolume=+barVol.value,soundBlocked=false;
 const unlockSound=()=>{ if(soundBtn.visible&&hitScreenUi()===soundBtn)return;   // let the speaker button decide
   if(soundBlocked&&!wantMuted&&tvVideo){ tvVideo.muted=false; tvVideo.volume=wantVolume*tvGain; syncBar(); } soundBlocked=false; };
 ['pointerdown','keydown','touchstart'].forEach(ev=>addEventListener(ev,unlockSound,{once:false,passive:true}));
@@ -797,7 +918,7 @@ new GLTFLoader().load(MODEL, gltf => {
   }
   try {
     productSystem = createWorkshopProducts({scene, model:gltf.scene, camera, panel:document.getElementById('ctl'),
-      onSelect: project => showProject(project),
+      onSelect: project => { showProject(project); completeHint('pick'); },
       onHover: project => prefetchProject(project)});
     // The teaser that plays on load is Bone Bash: mark it as the current project.
     currentProject = productSystem.projects.find(p => p.file === 'bone-bash') || null;
@@ -906,7 +1027,7 @@ const clock = new THREE.Clock();
   productSystem?.update(dt);
   workshopProps?.userData.update?.(dt);
   updateIntro(dt); updateCamTween(dt); updateDrift(dt); updateFocusClip(); updateCamInfo(dt);
-  updateTvButton(dt);
+  updateTvButton(dt); updateHints(dt);
   controls.update(); composer.render();
 })();
 </script>

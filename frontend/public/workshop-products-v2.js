@@ -161,6 +161,13 @@ export function createWorkshopProducts({ scene, model, camera, panel, onSelect, 
   const ribbonCache=new Map();
   let activeProject=null;
   const underGlowGeo=ownGeo(new THREE.PlaneGeometry(1.05,1.05));
+  // Onboarding beacon: yellow hexagon outline + soft hex fill on the belt, under the carrier's own hexagon.
+  // thetaStart PI/2 lines the corners up with the carrier's CylinderGeometry hexagon.
+  const beaconRingGeo=ownGeo(new THREE.RingGeometry(.31,.45,6,1,Math.PI/2));beaconRingGeo.rotateX(-Math.PI/2);
+  const beaconFillGeo=ownGeo(new THREE.CircleGeometry(.45,6,Math.PI/2));beaconFillGeo.rotateX(-Math.PI/2);
+  const beaconRingMat=ownMat(new THREE.MeshBasicMaterial({color:0xffb21f,transparent:true,opacity:0,depthWrite:false,toneMapped:false,blending:THREE.AdditiveBlending}));
+  const beaconFillMat=ownMat(new THREE.MeshBasicMaterial({color:0xffb21f,transparent:true,opacity:0,depthWrite:false,toneMapped:false,blending:THREE.AdditiveBlending}));
+  let beaconRoot=null,beaconT=0;
   function makeProduct(i){
     const root=new THREE.Group();root.name=`Carrier_${i+1}`;group.add(root);
     const materials=[];
@@ -177,9 +184,11 @@ export function createWorkshopProducts({ scene, model, camera, panel, onSelect, 
     // Hover state: glow spills under the hexagon, ribbon names the project.
     const underGlow=new THREE.Mesh(underGlowGeo,new THREE.MeshBasicMaterial({map:glowTexture,transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending}));
     underGlow.rotation.x=-Math.PI/2;underGlow.position.y=.004;root.add(underGlow);
+    const beacon=new THREE.Group();beacon.position.y=.003;beacon.visible=false;root.add(beacon);
+    beacon.add(new THREE.Mesh(beaconFillGeo,beaconFillMat),new THREE.Mesh(beaconRingGeo,beaconRingMat));
     const ribbon=new THREE.Sprite(new THREE.SpriteMaterial({transparent:true,opacity:0,depthTest:false,depthWrite:false}));
     ribbon.center.set(.5,0);ribbon.renderOrder=10;root.add(ribbon);
-    return {root,icon,texture,project,rim,groundGlow,underGlow,ribbon,hover:0,reveal:0,hit:[icon,base,top],materials,phase:Math.random()*Math.PI*2,frequency:.7+Math.random()*.25,previous:null};
+    return {root,icon,texture,project,rim,groundGlow,underGlow,ribbon,beacon,hover:0,reveal:0,hit:[icon,base,top],materials,phase:Math.random()*Math.PI*2,frequency:.7+Math.random()*.25,previous:null};
   }
   for(let i=0;i<10;i++)assets.push(makeProduct(i));
   // Hover (roll-over) a product: the belt stops, the product lights up and shows its ribbon.
@@ -266,6 +275,10 @@ export function createWorkshopProducts({ scene, model, camera, panel, onSelect, 
     hovered=pick();document.body.style.cursor=hovered?'pointer':'';
     if(hovered!==lastHovered){lastHovered=hovered;if(hovered)onHover?.(hovered.project);}
     const running=!settings.paused&&!hovered;
+    // Beacon pulse (shared materials, so one update drives whichever carrier currently shows it).
+    beaconT+=dt;const pulse=.5+.5*Math.sin(beaconT*4.5);
+    beaconRingMat.opacity=.7+.3*pulse;beaconFillMat.opacity=.18+.2*pulse;
+    assets.forEach(p=>{p.beacon.visible=p.root===beaconRoot&&p.root.visible;if(p.beacon.visible)p.beacon.scale.setScalar(.97+.08*pulse);});
     if(running){travel+=dt*settings.speed;elapsed+=dt;}
     assets.forEach((p,i)=>{
       p.root.visible=i<effectiveCount;if(!p.root.visible)return;
@@ -316,6 +329,9 @@ export function createWorkshopProducts({ scene, model, camera, panel, onSelect, 
     });
   }
   return {update,settings,isHalted:()=>settings.paused||!!hovered,
-    projects:PROJECTS,setActive:project=>{activeProject=project||null;},snapshot:()=>({...settings,effectiveCount,actualSpacing}),
+    projects:PROJECTS,setActive:project=>{activeProject=project||null;},
+    setBeacon:root=>{beaconRoot=root||null;},
+    // Visible carriers (for anchoring onboarding hints to a product on the belt).
+    visibleCarriers:()=>assets.filter(p=>p.root.visible&&p.hover<.5).map(p=>({root:p.root,iconHeight:p.icon.scale.y})),snapshot:()=>({...settings,effectiveCount,actualSpacing}),
     diagnostics:()=>({length,exitAt,entryAt,effectiveCount,pulses:gates.map(g=>g.pulses)})};
 }
